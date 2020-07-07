@@ -12,7 +12,6 @@ const log = require('console-log-level')(
 
 const { getCaptchaSovler } = require('./captcha')
 
-
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const http = require('http');
@@ -22,6 +21,8 @@ const serverPort = process.env.PORT || 8191;
 const serverHost = process.env.HOST || '0.0.0.0';
 const logHtml = process.env.LOG_HTML || false;
 const sessions = {}
+
+const CHALLENGE_SELECTORS = ['.ray_id', '.attack-box']
 const TOKEN_INPUT_NAMES = ['g-recaptcha-response', 'h-captcha-response']
 
 
@@ -174,7 +175,6 @@ function processRequest(params, req, res, startTimestamp) {
       const reqUserAgent = params["userAgent"];
       if (reqUserAgent) {
         log.debug('Using custom User-Agent: ' + reqUserAgent);
-        // TODO: remove the profile after closing the browser
         puppeteerOptions['userDataDir'] = prepareBrowserProfile(reqUserAgent, session);
       }
 
@@ -211,32 +211,39 @@ async function resolveCallenge(params, browser, res, startTimestamp, session) {
   const response = await page.goto(reqUrl, { waitUntil: 'domcontentloaded' });
 
   // detect cloudflare
+  for (const selector of CHALLENGE_SELECTORS) {
+    const cfChallenegeElem = await page.$(selector);
+    if (cfChallenegeElem) {
+      log.debug('Waiting for Cloudflare challenge...');
 
-  const cloudflareRay = await page.$('.ray_id');
-  if (cloudflareRay) {
-    log.debug('Waiting for Cloudflare challenge...');
+      // TODO: find out why these pages hang sometimes
+      while (Date.now() - startTimestamp < reqMaxTimeout) {
+        await page.waitFor(1000);
+        try {
+          // catch exception timeout in waitForNavigation
+          await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 });
+        } catch (error) { }
 
-    while (Date.now() - startTimestamp < reqMaxTimeout) {
-      await page.waitFor(1000);
+        const cfChallenegeElem = await page.$(selector);
+        if (!cfChallenegeElem)
+          break;
+        log.debug('Found challenege element again...');
 
-      try {
-        // catch exception timeout in waitForNavigation
-        await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 });
-      } catch (error) { }
+        page.reload()
+        await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
+        log.debug('Reloaded page...');
+      }
 
-      const cloudflareRay = await page.$('.ray_id');
-      if (!cloudflareRay)
-        break;
+      if (Date.now() - startTimestamp >= reqMaxTimeout) {
+        errorResponse("Maximum timeout reached. maxTimeout=" + reqMaxTimeout + " (ms)", res, startTimestamp);
+        return;
+      }
+
+      log.debug("Validating HTML code...");
+      break
+    } else {
+      log.debug(`No '${selector}' challenge element detected.`);
     }
-
-    if (Date.now() - startTimestamp >= reqMaxTimeout) {
-      errorResponse("Maximum timeout reached. maxTimeout=" + reqMaxTimeout + " (ms)", res, startTimestamp);
-      return;
-    }
-
-    log.debug("Validating HTML code...");
-  } else {
-    log.debug("No challenge detected");
   }
 
   let html = await page.content();
