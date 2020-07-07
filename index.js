@@ -10,6 +10,8 @@ const log = require('console-log-level')(
     }
   });
 
+const { getCaptchaSovler } = require('./captcha')
+
 
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
@@ -20,6 +22,14 @@ const serverPort = process.env.PORT || 8191;
 const serverHost = process.env.HOST || '0.0.0.0';
 const logHtml = process.env.LOG_HTML || false;
 const sessions = {}
+const TOKEN_INPUT_NAMES = ['g-recaptcha-response', 'h-captcha-response']
+
+
+const captchaTypes = {
+  're': 'reCaptcha',
+  'h': 'hCaptcha'
+}
+
 let reqCounter = 0;
 
 // setting "user-agent-override" evasion is not working for us because it can't be changed
@@ -126,6 +136,8 @@ function validateIncomingRequest(params, req, res, startTimestamp) {
   return true;
 }
 
+
+
 function processRequest(params, req, res, startTimestamp) {
   switch (params.cmd) {
     // EXPIRE
@@ -188,6 +200,7 @@ async function resolveCallenge(params, browser, res, startTimestamp, session) {
   const reqUrl = params["url"];
   const reqMaxTimeout = params["maxTimeout"] || 60000;
   const reqCookies = params["cookies"];
+  let message = ''
 
   if (reqCookies) {
     log.debug('Using custom cookies');
@@ -195,9 +208,10 @@ async function resolveCallenge(params, browser, res, startTimestamp, session) {
   }
 
   log.debug("Navegating to... " + reqUrl);
-  await page.goto(reqUrl, { waitUntil: 'domcontentloaded' });
+  const response = await page.goto(reqUrl, { waitUntil: 'domcontentloaded' });
 
   // detect cloudflare
+
   const cloudflareRay = await page.$('.ray_id');
   if (cloudflareRay) {
     log.debug('Waiting for Cloudflare challenge...');
@@ -221,24 +235,84 @@ async function resolveCallenge(params, browser, res, startTimestamp, session) {
     }
 
     log.debug("Validating HTML code...");
-    const html = await page.content();
-    if (html.includes("captcha-bypass") || html.includes("__cf_chl_captcha_tk__")) {
-      errorResponse("Chaptcha detected!", res, startTimestamp);
-      return;
-    }
   } else {
     log.debug("No challenge detected");
+  }
+
+  let html = await page.content();
+
+  // look for challenge
+  if (response.headers()['server'].startsWith('cloudflare')) {
+    log.info('Cloudflare detected')
+    if (response.status() == 403) {
+
+      if (html.includes('<span class="cf-error-code">1020</span>'))
+        return errorResponse("Cloudflare has blocked this request (Code 1020 Detected).", res, startTimestamp);
+
+      const captchaSolver = getCaptchaSovler();
+      if (captchaSolver) {
+        const captchaStartTimestamp = Date.now();
+        const challengeForm = await page.$('#challenge-form');
+        if (challengeForm) {
+          const captchaType = captchaTypes[await page.evaluate(e => e.value, await page.$('input[name="cf_captcha_kind"]'))]
+          if (!captchaType)
+            return errorResponse("Unknown captcha type!", res, startTimestamp);
+
+          const sitekeyElem = await page.$('*[data-sitekey]')
+          if (!sitekeyElem)
+            return errorResponse("Could not find sitekey!", res, startTimestamp);
+          const sitekey = await sitekeyElem.evaluate(e => e.getAttribute('data-sitekey'))
+
+          const token = await captchaSolver(reqUrl, sitekey, captchaType);
+
+          for (const name of TOKEN_INPUT_NAMES) {
+            const input = await page.$(`[name="${name}"]`)
+            if (input)
+              await input.evaluate((e, token) => e.value = token, token)
+          }
+
+          // ignore preset event listeners on the form
+          await page.evaluate(() => {
+            window.addEventListener('submit', e => { event.stopPropagation() }, true);
+          })
+
+          // this element is added with js and we want to wait for all the js to load before submitting
+          page.waitForSelector('#challenge-form [type=submit]')
+
+          // calculates the time it took to solve the captcha
+          const captchaSolveTotalTime = Date.now() - captchaStartTimestamp;
+
+          // generates a random wait time
+          const randomWaitTime = (Math.floor(Math.random() * 20) + 10) * 1000
+
+          // waits, if any, time remaining to apper human but stay as fast as possible
+          const timeLeft = randomWaitTime - captchaSolveTotalTime
+          if (timeLeft > 0)
+            await page.waitFor(timeLeft)
+
+          // submit captcha response
+          await Promise.all([
+            challengeForm.evaluate(e => e.submit()),
+            page.waitForNavigation({ waitUntil: 'domcontentloaded' })
+          ])
+
+          // reset html
+          html = await page.content();
+        }
+      } else {
+        message = `Captcha detected but 'CAPTCHA_SOLVER' not set in ENV.`
+      }
+    }
   }
 
   const url = await page.url();
   log.debug("Response URL: " + url);
   const cookies = await page.cookies();
   log.debug("Response cookies: " + JSON.stringify(cookies));
-  const html = await page.content();
   if (logHtml)
     log.debug(html);
 
-  successResponse('', {
+  successResponse(message, {
     session: session,
     solution: {
       url: url,
@@ -247,4 +321,6 @@ async function resolveCallenge(params, browser, res, startTimestamp, session) {
       userAgent: userAgent
     }
   }, res, startTimestamp)
+
+  page.close()
 }
