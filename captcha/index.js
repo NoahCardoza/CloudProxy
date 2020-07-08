@@ -18,7 +18,12 @@ function getCaptchaSolver () {
     try {
       captchaSolvers[method] = require('./' + method)
     } catch (e) {
-      throw Error(`The solver '${method}' is not a valid captcha solving method.`)
+      if (e.code === 'MODULE_NOT_FOUND') {
+        throw Error(`The solver '${method}' is not a valid captcha solving method.`)
+      } else {
+        console.error(e)
+        throw Error(`An error occured loading the solver '${method}'.`)
+      }
     }
   }
 
