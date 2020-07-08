@@ -15,6 +15,7 @@ const puppeteer = require('puppeteer-extra')
 const StealthPlugin = require('puppeteer-extra-plugin-stealth')
 const http = require('http')
 const { getCaptchaSolver } = require('./captcha')
+const { deleteFolderRecursive } = require('./utils')
 
 const pjson = require('./package.json')
 
@@ -116,7 +117,7 @@ function processRequest (params, req, res, startTimestamp) {
       if (sessions[session]) {
         sessions[session].close()
         delete sessions[session]
-        fs.rmdirSync(userDataDirFromSession(session), { recursive: true })
+        deleteFolderRecursive(userDataDirFromSession(session))
         return successResponse('The session has been removed.', null, res, startTimestamp)
       }
       return errorResponse('This session does not exist.', res, startTimestamp)
