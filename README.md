@@ -1,11 +1,11 @@
-## FlareSolverr
+# FlareSolverr
 
 Proxy server to bypass Cloudflare protection
 
 :warning: This project is in beta state. Some things may not work and the API can change at any time.
 See the known issues section.
 
-### How it works
+## How it works
 
 FlareSolverr starts a proxy server and it waits for user requests in idle state using few resources.
 When some request arrives, it uses [puppeteer](https://github.com/puppeteer/puppeteer) with the
@@ -17,34 +17,37 @@ be used to bypass Cloudflare using other HTTP clients.
 NOTE: Web browsers consume a lot of memory. If you are running FlareSolverr on a machine with few RAM,
 do not make many requests at once. With each request a new browser is launched.
 
-### Installation
+## Installation
 
 It requires NodeJS.
 
 Run `PUPPETEER_PRODUCT=firefox npm install` to install FlareSolverr dependencies.
 
-### Usage
+## Usage
 
 Run `node index.js` to start FlareSolverr.
 
 Example request:
+
 ```bash
 curl -L -X POST 'http://localhost:8191/v1' \
 -H 'Content-Type: application/json' \
 --data-raw '{
-	"url":"http://www.google.com/",
-	"userAgent": "Mozilla/5.0 (X11; Linux x86_64; rv:76.0) Gecko/20100101 Firefox/76.0",
-	"maxTimeout": 60000
+  "url":"http://www.google.com/",
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64; rv:76.0) Gecko/20100101 Firefox/76.0",
+  "maxTimeout": 60000
 }'
 ```
+
 Parameter | Notes
 |--|--|
 url | Mandatory
 userAgent | Optional. Will be used by the headless browser
 maxTimeout | Optional. Max timeout to solve the challenge
-cookies | Optional. Will be used by the headless browser. Follow this format https://github.com/puppeteer/puppeteer/blob/v3.3.0/docs/api.md#pagesetcookiecookies
+cookies | Optional. Will be used by the headless browser. Follow [this](https://github.com/puppeteer/puppeteer/blob/v3.3.0/docs/api.md#pagesetcookiecookies) format
 
 Example response:
+
 ```json
 {
   "status": "ok",
@@ -85,7 +88,7 @@ Example response:
 }
 ```
 
-#### Environment variables
+## Environment variables
 
 To set the environment vars in Linux run `export LOG_LEVEL=debug` and then start FlareSolverr in the same shell.
 
@@ -96,7 +99,7 @@ LOG_HTML | false
 PORT | 8191
 HOST | 0.0.0.0
 
-### Docker
+## Docker
 
 You can edit environment variables in `./Dockerfile` and build your own image.
 
@@ -105,17 +108,18 @@ docker build -t flaresolverr:latest .
 docker run --restart=always --name flaresolverr -p 8191:8191 -d flaresolverr:latest
 ```
 
-### Known issues / Roadmap
+## Known issues / Roadmap
 
 The current implementation is not able to bypass Cloudflare because they are detecting the headless browser.
 I hope this will be fixed soon in the [puppeteer stealth plugin](https://github.com/berstend/puppeteer-extra/tree/master/packages/puppeteer-extra-plugin-stealth)
 
 TODO:
+
 * Fix remaining issues in the code (see TODOs)
 * Make the maxTimeout more accurate (count the time to open the first page)
 * Add support for more HTTP methods (POST, PUT, DELETE ...)
 * Add support for user HTTP headers
-* Hide sensitive information in logs 
+* Hide sensitive information in logs
 * Reduce Docker image size
 * Docker image for ARM architecture
 * Install instructions for Windows
