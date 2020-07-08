@@ -195,6 +195,8 @@ function processRequest(params, req, res, startTimestamp) {
 
 async function resolveCallenge(params, browser, res, startTimestamp, session) {
   const page = await browser.newPage();
+  if (params.userAgent)
+    await page.setUserAgent(params.userAgent)
   const userAgent = await page.evaluate(() => navigator.userAgent);
   log.debug("User-Agent: " + userAgent);
   const reqUrl = params["url"];
