@@ -9,7 +9,7 @@ const PROTOCOL_LIBRARIES = {
 
 const captchaSolvers = {}
 
-function getCaptchaSovler () {
+function getCaptchaSolver () {
   const method = process.env.CAPTCHA_SOLVER
 
   if (!method) { return null }
@@ -82,7 +82,7 @@ module.exports = {
   get,
   post,
   sleep,
-  getCaptchaSovler
+  getCaptchaSolver
 }
 
 // post('https://httpbin.org/post', 'this=that&that=this', 'application/x-www-form-urlencoded').then(data => {

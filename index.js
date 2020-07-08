@@ -14,7 +14,8 @@ const log = require('console-log-level')(
 const puppeteer = require('puppeteer-extra')
 const StealthPlugin = require('puppeteer-extra-plugin-stealth')
 const http = require('http')
-const { getCaptchaSovler } = require('./captcha').default
+const { getCaptchaSolver } = require('./captcha')
+
 const pjson = require('./package.json')
 
 const { version } = pjson
@@ -224,7 +225,7 @@ async function resolveCallenge (params, browser, res, startTimestamp, session) {
     if (response.status() === 403) {
       if (html.includes('<span class="cf-error-code">1020</span>')) { return errorResponse('Cloudflare has blocked this request (Code 1020 Detected).', res, startTimestamp) }
 
-      const captchaSolver = getCaptchaSovler()
+      const captchaSolver = getCaptchaSolver()
       if (captchaSolver) {
         const captchaStartTimestamp = Date.now()
         const challengeForm = await page.$('#challenge-form')
