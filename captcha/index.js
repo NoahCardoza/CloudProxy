@@ -60,8 +60,6 @@ function post (url, data, contentType, opts) {
     }
   })
 
-  console.log(options)
-
   if (contentType) { options.headers['Content-Type'] = contentType }
 
   return new Promise((resolve, reject) => {
