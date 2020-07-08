@@ -222,7 +222,9 @@ async function resolveCallenge (params, browser, res, startTimestamp, session) {
   // look for challenge
   if (response.headers().server.startsWith('cloudflare')) {
     log.info('Cloudflare detected')
-    if (response.status() === 403) {
+
+    // it seems some captcha pages return 200 sometimes
+    if (response.status() === 403 || html.includes('cf_captcha_kind')) {
       if (html.includes('<span class="cf-error-code">1020</span>')) { return errorResponse('Cloudflare has blocked this request (Code 1020 Detected).', res, startTimestamp) }
 
       const captchaSolver = getCaptchaSolver()
