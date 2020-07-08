@@ -16,6 +16,9 @@ ENV LOG_HTML=
 ENV PORT=8191
 ENV HOST=0.0.0.0
 
+ENV CAPTCHA_SOLVER=harvester
+ENV HARVESTER_ENDPOINT=https://host.docker.internal:5000/token
+
 # ENV CAPTCHA_SOLVER=harvester|<more coming soon>...
 # ENV HARVESTER_ENDPOINT=https://127.0.0.1:5000/token
 

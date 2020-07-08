@@ -1,4 +1,4 @@
-const { get, sleep } = require('./index').default
+const { get, sleep } = require('./index')
 
 /*
     This method uses the captcha-harvester project:
@@ -14,7 +14,7 @@ const { get, sleep } = require('./index').default
         E.G. "https://127.0.0.1:5000/token"
 */
 
-async function solve (url, sitekey, type) {
+module.exports = async function solve (url, sitekey, type) {
   const endpoint = process.env.HARVESTER_ENDPOINT
   if (!endpoint) { throw Error('ENV variable `HARVESTER_ENDPOINT` must be set.') }
 
@@ -29,5 +29,3 @@ async function solve (url, sitekey, type) {
     await sleep(3000)
   }
 }
-
-module.exports = solve
