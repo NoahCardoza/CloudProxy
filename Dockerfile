@@ -12,9 +12,12 @@ RUN PUPPETEER_PRODUCT=firefox npm install
 COPY --chown=node:node . .
 
 ENV LOG_LEVEL=info
-ENV LOG_HTML=false
+ENV LOG_HTML=
 ENV PORT=8191
 ENV HOST=0.0.0.0
+
+# ENV CAPTCHA_SOLVER=harvester|<more coming soon>...
+# ENV HARVESTER_ENDPOINT=https://127.0.0.1:5000/token
 
 EXPOSE 8191
 CMD [ "node", "index.js" ]
