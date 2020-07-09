@@ -1,21 +1,8 @@
-const os = require('os')
-const path = require('path')
-const fs = require('fs')
 const { v1: uuidv1 } = require('uuid')
-const log = require('console-log-level')(
-  {
-    level: process.env.LOG_LEVEL || 'info',
-    prefix (level) {
-      return `${new Date().toISOString()} ${level.toUpperCase()} REQ-${reqCounter}`
-    }
-  }
-)
+const log = require('./log')
 
-const puppeteer = require('puppeteer-extra')
-const StealthPlugin = require('puppeteer-extra-plugin-stealth')
 const http = require('http')
 const { getCaptchaSolver } = require('./captcha')
-const { deleteFolderRecursive } = require('./utils')
 
 const pjson = require('./package.json')
 
@@ -23,7 +10,7 @@ const { version } = pjson
 const serverPort = process.env.PORT || 8191
 const serverHost = process.env.HOST || '0.0.0.0'
 const logHtml = process.env.LOG_HTML || false
-const sessions = {}
+const sessions = require('./session')
 
 const CHALLENGE_SELECTORS = ['.ray_id', '.attack-box']
 const TOKEN_INPUT_NAMES = ['g-recaptcha-response', 'h-captcha-response']
@@ -32,12 +19,6 @@ const captchaTypes = {
   re: 'reCaptcha',
   h: 'hCaptcha'
 }
-
-let reqCounter = 0
-
-// setting "user-agent-override" evasion is not working for us because it can't be changed
-// in each request. we set the user-agent in the browser args instead
-puppeteer.use(StealthPlugin())
 
 function errorResponse (errorMsg, res, startTimestamp) {
   log.error(errorMsg)
@@ -58,11 +39,11 @@ function errorResponse (errorMsg, res, startTimestamp) {
 function successResponse (successMsg, extendedProperties, res, startTimestamp) {
   const endTimestamp = Date.now()
   log.info(`Successful response in ${(endTimestamp - startTimestamp) / 1000} s`)
-  log.info(successMsg)
+  if (successMsg) { log.info(successMsg) }
 
   const response = Object.assign(extendedProperties || {}, {
     status: 'ok',
-    message: successMsg,
+    message: successMsg || '',
     startTimestamp,
     endTimestamp,
     version
@@ -72,20 +53,6 @@ function successResponse (successMsg, extendedProperties, res, startTimestamp) {
   })
   res.write(JSON.stringify(response))
   res.end()
-}
-
-function userDataDirFromSession (session) {
-  return path.join(os.tmpdir(), `/puppeteer_firefox_profile_${session}`)
-}
-
-function prepareBrowserProfile (userAgent, session) {
-  const userDataDir = userDataDirFromSession(session)
-  if (!fs.existsSync(userDataDir)) {
-    fs.mkdirSync(userDataDir, { recursive: true })
-  }
-  const prefs = `user_pref("general.useragent.override", "${userAgent}");`
-  fs.writeFile(path.join(userDataDir, 'prefs.js'), prefs, () => { })
-  return userDataDir
 }
 
 function validateIncomingRequest (ctx, params) {
@@ -110,56 +77,37 @@ function validateIncomingRequest (ctx, params) {
 }
 
 const routes = {
-  expire: (ctx, { session }) => {
-    if (sessions[session]) {
-      sessions[session].close()
-      delete sessions[session]
-      const userDataDirPath = userDataDirFromSession(session)
-      deleteFolderRecursive(userDataDirPath)
-      return ctx.successResponse('The session has been removed.')
-    }
-    return ctx.errorResponse('This session does not exist.')
+  'sessions.create': async (ctx, { session, userAgent }) => {
+    const browser = await sessions.create(session || uuidv1(), { userAgent })
+    if (browser) { ctx.successResponse('Session created successfully.', { session }) }
   },
-  get: (ctx, params) => {
-    const puppeteerOptions = {
-      product: 'firefox',
-      headless: true
+  'sessions.list': (ctx) => {
+    ctx.successResponse(null, { sessions: sessions.list() })
+  },
+  'sessions.destroy': (ctx, { session }) => {
+    if (sessions.destroy(session)) { return ctx.successResponse('The session has been removed.') }
+    ctx.errorResponse('This session does not exist.')
+  },
+  'request.get': async (ctx, params) => {
+    const oneTimeSession = params.session === undefined
+    const sessionId = params.session || uuidv1()
+    const browser = oneTimeSession ? await sessions.create(sessionId, params) : sessions.get(sessionId)
+
+    if (browser === false) {
+      return ctx.errorResponse('This session does not exist. Use \'list_sessions\' to see all the existing sessions.')
     }
 
-    const session = params.session || uuidv1()
-    const browser = sessions[session]
+    const data = await resolveCallenge(ctx, params, browser)
 
-    const useBrowser = async (browser) => {
-      try {
-        await resolveCallenge(ctx, params, browser, session)
-      } catch (error) {
-        console.error(error)
-        ctx.errorResponse(error.message)
-      }
-    }
+    ctx.successResponse(data.message, {
+      ...(oneTimeSession ? {} : { session: sessionId }),
+      solution: data.result
+    })
 
-    // if session exists use the existsing browser instance
-    if (browser) { return useBrowser(browser) }
-
-    // otherwise create an instance and use it
-    const reqUserAgent = params.userAgent
-    if (reqUserAgent) {
-      log.debug(`Using custom User-Agent: ${reqUserAgent}`)
-      puppeteerOptions.userDataDir = prepareBrowserProfile(reqUserAgent, session)
-    }
-
-    log.debug('Launching headless browser...')
-    // TODO: try and launch the browser at least 3 times before sending back
-    // "Error: Failed to launch the browser process!"
-    return puppeteer.launch(puppeteerOptions)
-      .then(browser => {
-        sessions[session] = browser
-        useBrowser(browser)
-      })
-      .catch(error => {
-        console.error(error)
-        ctx.errorResponse(error.message)
-      })
+    if (oneTimeSession) { sessions.destroy(sessionId) }
+  },
+  'request.post': (ctx) => {
+    ctx.errorResponse('Not implemented yet.')
   }
 }
 
@@ -169,7 +117,7 @@ function processRequest (ctx, params) {
   return ctx.errorResponse(`The command '${params.cmd}' is invalid.`)
 }
 
-async function resolveCallenge (ctx, params, browser, session) {
+async function resolveCallenge (ctx, params, browser) {
   const page = await browser.newPage()
   if (params.userAgent) { await page.setUserAgent(params.userAgent) }
   const userAgent = await page.evaluate(() => navigator.userAgent)
@@ -290,21 +238,26 @@ async function resolveCallenge (ctx, params, browser, session) {
   log.debug(`Response cookies: ${JSON.stringify(cookies)}`)
   if (logHtml) { log.debug(html) }
 
-  ctx.successResponse(message, {
-    session,
-    solution: {
+  // make sure the page is closed becaue if it isn't and error will be thrown
+  // when a user uses a temporary session, the browser make be quit before
+  // the page is properly closed.
+  await page.close()
+
+  return {
+    message,
+    result: {
       url,
       response: html,
       cookies,
       userAgent
     }
-  })
-
-  page.close()
+  }
 }
 
 http.createServer((req, res) => {
-  reqCounter += 1
+  // count the request for the log prefix
+  log.incRequests()
+
   const startTimestamp = Date.now()
   log.info(`Incoming request: ${req.method} ${req.url}`)
   let body = []
@@ -333,7 +286,12 @@ http.createServer((req, res) => {
     if (!validateIncomingRequest(ctx, params)) { return }
 
     // process request
-    processRequest(ctx, params)
+    try {
+      processRequest(ctx, params)
+    } catch (e) {
+      console.error(e)
+      ctx.errorResponse(e.message)
+    }
   })
 }).listen(serverPort, serverHost, () => {
   log.info(`FlareSolverr v${version} listening on http://${serverHost}:${serverPort}`)
