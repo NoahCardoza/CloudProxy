@@ -88,84 +88,88 @@ function prepareBrowserProfile (userAgent, session) {
   return userDataDir
 }
 
-function validateIncomingRequest (params, req, res, startTimestamp) {
+function validateIncomingRequest (ctx, params) {
   log.info(`Params: ${JSON.stringify(params)}`)
 
-  if (req.method !== 'POST') {
-    errorResponse('Only the POST method is allowed', res, startTimestamp)
+  if (ctx.req.method !== 'POST') {
+    ctx.errorResponse('Only the POST method is allowed')
     return false
   }
 
-  if (req.url !== '/v1') {
-    errorResponse('Only /v1 endpoint is allowed', res, startTimestamp)
+  if (ctx.req.url !== '/v1') {
+    ctx.errorResponse('Only /v1 endpoint is allowed')
     return false
   }
 
   if (!params.cmd) {
-    errorResponse("Parameter 'cmd' is mandatory", res, startTimestamp)
+    ctx.errorResponse("Parameter 'cmd' is mandatory")
     return false
   }
 
   return true
 }
 
-function processRequest (params, req, res, startTimestamp) {
-  switch (params.cmd) {
-    // EXPIRE
-    case 'expire': {
-      const { session } = params
-      if (sessions[session]) {
-        sessions[session].close()
-        delete sessions[session]
-        deleteFolderRecursive(userDataDirFromSession(session))
-        return successResponse('The session has been removed.', null, res, startTimestamp)
-      }
-      return errorResponse('This session does not exist.', res, startTimestamp)
+const routes = {
+  expire: (ctx, { session }) => {
+    if (sessions[session]) {
+      sessions[session].close()
+      delete sessions[session]
+      const userDataDirPath = userDataDirFromSession(session)
+      deleteFolderRecursive(userDataDirPath)
+      return ctx.successResponse('The session has been removed.')
     }
-    // GET
-    case 'get': {
-      const puppeteerOptions = {
-        product: 'firefox',
-        headless: true
-      }
-
-      const session = params.session || uuidv1()
-      const browser = sessions[session]
-
-      const useBrowser = async (browser) => {
-        try {
-          await resolveCallenge(params, browser, res, startTimestamp, session)
-        } catch (error) {
-          console.error(error)
-          errorResponse(error.message, res, startTimestamp)
-        }
-      }
-
-      if (browser) { return useBrowser(browser) }
-
-      const reqUserAgent = params.userAgent
-      if (reqUserAgent) {
-        log.debug(`Using custom User-Agent: ${reqUserAgent}`)
-        puppeteerOptions.userDataDir = prepareBrowserProfile(reqUserAgent, session)
-      }
-
-      log.debug('Launching headless browser...')
-      return puppeteer.launch(puppeteerOptions)
-        .then((browser) => {
-          sessions[session] = browser
-          useBrowser(browser)
-        })
-        .catch((error) => {
-          console.error(error)
-          errorResponse(error.message, res, startTimestamp)
-        })
+    return ctx.errorResponse('This session does not exist.')
+  },
+  get: (ctx, params) => {
+    const puppeteerOptions = {
+      product: 'firefox',
+      headless: true
     }
-    default:
-      return errorResponse(`The command '${params.cmd}' is invalid.`, res, startTimestamp)
+
+    const session = params.session || uuidv1()
+    const browser = sessions[session]
+
+    const useBrowser = async (browser) => {
+      try {
+        await resolveCallenge(ctx, params, browser, session)
+      } catch (error) {
+        console.error(error)
+        ctx.errorResponse(error.message)
+      }
+    }
+
+    // if session exists use the existsing browser instance
+    if (browser) { return useBrowser(browser) }
+
+    // otherwise create an instance and use it
+    const reqUserAgent = params.userAgent
+    if (reqUserAgent) {
+      log.debug(`Using custom User-Agent: ${reqUserAgent}`)
+      puppeteerOptions.userDataDir = prepareBrowserProfile(reqUserAgent, session)
+    }
+
+    log.debug('Launching headless browser...')
+    // TODO: try and launch the browser at least 3 times before sending back
+    // "Error: Failed to launch the browser process!"
+    return puppeteer.launch(puppeteerOptions)
+      .then(browser => {
+        sessions[session] = browser
+        useBrowser(browser)
+      })
+      .catch(error => {
+        console.error(error)
+        ctx.errorResponse(error.message)
+      })
   }
 }
 
-async function resolveCallenge (params, browser, res, startTimestamp, session) {
+function processRequest (ctx, params) {
+  const route = routes[params.cmd]
+  if (route) { return route(ctx, params) }
+  return ctx.errorResponse(`The command '${params.cmd}' is invalid.`)
+}
+
+async function resolveCallenge (ctx, params, browser, session) {
   const page = await browser.newPage()
   if (params.userAgent) { await page.setUserAgent(params.userAgent) }
   const userAgent = await page.evaluate(() => navigator.userAgent)
@@ -190,7 +194,7 @@ async function resolveCallenge (params, browser, res, startTimestamp, session) {
       log.debug('Waiting for Cloudflare challenge...')
 
       // TODO: find out why these pages hang sometimes
-      while (Date.now() - startTimestamp < reqMaxTimeout) {
+      while (Date.now() - ctx.startTimestamp < reqMaxTimeout) {
         await page.waitFor(1000)
         try {
           // catch exception timeout in waitForNavigation
@@ -206,8 +210,8 @@ async function resolveCallenge (params, browser, res, startTimestamp, session) {
         log.debug('Reloaded page...')
       }
 
-      if (Date.now() - startTimestamp >= reqMaxTimeout) {
-        errorResponse(`Maximum timeout reached. maxTimeout=${reqMaxTimeout} (ms)`, res, startTimestamp)
+      if (Date.now() - ctx.startTimestamp >= reqMaxTimeout) {
+        ctx.errorResponse(`Maximum timeout reached. maxTimeout=${reqMaxTimeout} (ms)`)
         return
       }
 
@@ -226,7 +230,7 @@ async function resolveCallenge (params, browser, res, startTimestamp, session) {
 
     // it seems some captcha pages return 200 sometimes
     if (response.status() === 403 || html.includes('cf_captcha_kind')) {
-      if (html.includes('<span class="cf-error-code">1020</span>')) { return errorResponse('Cloudflare has blocked this request (Code 1020 Detected).', res, startTimestamp) }
+      if (html.includes('<span class="cf-error-code">1020</span>')) { return ctx.errorResponse('Cloudflare has blocked this request (Code 1020 Detected).') }
 
       const captchaSolver = getCaptchaSolver()
       if (captchaSolver) {
@@ -234,10 +238,10 @@ async function resolveCallenge (params, browser, res, startTimestamp, session) {
         const challengeForm = await page.$('#challenge-form')
         if (challengeForm) {
           const captchaType = captchaTypes[await page.evaluate((e) => e.value, await page.$('input[name="cf_captcha_kind"]'))]
-          if (!captchaType) { return errorResponse('Unknown captcha type!', res, startTimestamp) }
+          if (!captchaType) { return ctx.errorResponse('Unknown captcha type!') }
 
           const sitekeyElem = await page.$('*[data-sitekey]')
-          if (!sitekeyElem) { return errorResponse('Could not find sitekey!', res, startTimestamp) }
+          if (!sitekeyElem) { return ctx.errorResponse('Could not find sitekey!') }
           const sitekey = await sitekeyElem.evaluate((e) => e.getAttribute('data-sitekey'))
 
           const token = await captchaSolver(reqUrl, sitekey, captchaType)
@@ -286,7 +290,7 @@ async function resolveCallenge (params, browser, res, startTimestamp, session) {
   log.debug(`Response cookies: ${JSON.stringify(cookies)}`)
   if (logHtml) { log.debug(html) }
 
-  successResponse(message, {
+  ctx.successResponse(message, {
     session,
     solution: {
       url,
@@ -294,7 +298,7 @@ async function resolveCallenge (params, browser, res, startTimestamp, session) {
       cookies,
       userAgent
     }
-  }, res, startTimestamp)
+  })
 
   page.close()
 }
@@ -317,11 +321,19 @@ http.createServer((req, res) => {
       return
     }
 
+    const ctx = {
+      req,
+      res,
+      startTimestamp,
+      errorResponse: (msg) => errorResponse(msg, res, startTimestamp),
+      successResponse: (msg, extendedProperties) => successResponse(msg, extendedProperties, res, startTimestamp)
+    }
+
     // validate params
-    if (!validateIncomingRequest(params, req, res, startTimestamp)) { return }
+    if (!validateIncomingRequest(ctx, params)) { return }
 
     // process request
-    processRequest(params, req, res, startTimestamp)
+    processRequest(ctx, params)
   })
 }).listen(serverPort, serverHost, () => {
   log.info(`FlareSolverr v${version} listening on http://${serverHost}:${serverPort}`)
