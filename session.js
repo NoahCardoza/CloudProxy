@@ -4,7 +4,7 @@ const fs = require('fs')
 const log = require('./log')
 const puppeteer = require('puppeteer-extra')
 const StealthPlugin = require('puppeteer-extra-plugin-stealth')
-const { deleteFolderRecursive } = require('./utils')
+const { deleteFolderRecursive, sleep } = require('./utils')
 
 // setting "user-agent-override" evasion is not working for us because it can't be changed
 // in each request. we set the user-agent in the browser args instead
@@ -50,13 +50,19 @@ module.exports = {
     return browser
   },
   list: () => Object.keys(sessions),
-  destroy: (id) => {
+  destroy: async (id) => {
     const browser = sessions[id]
     if (browser) {
-      browser.close()
+      await browser.close()
       delete sessions[id]
       const userDataDirPath = userDataDirFromId(id)
-      deleteFolderRecursive(userDataDirPath)
+      try {
+        await sleep(5000)
+        deleteFolderRecursive(userDataDirPath)
+      } catch (e) {
+        console.log(e)
+        throw Error(`Error deleting browser session folder. ${e.message}`)
+      }
       return true
     }
     return false
