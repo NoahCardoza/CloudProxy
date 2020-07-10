@@ -159,6 +159,7 @@ To use this method you must set these ENV variables:
 CAPTCHA_SOLVER=harvester
 HARVESTER_ENDPOINT=https://127.0.0.1:5000/token
 ```
+
 **Note**: above I set `HARVESTER_ENDPOINT` to the default configureation
 of the captcha harvester's server, but that could change if
 you customize the command line flags. Simply put, `HARVESTER_ENDPOINT` should be set to the URI of the route that returns a token in plain text when called.
