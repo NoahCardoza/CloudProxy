@@ -50,21 +50,20 @@ module.exports = {
     return browser
   },
   list: () => Object.keys(sessions),
-  destroy: (id) => {
+  destroy: async (id) => {
     const browser = sessions[id]
     if (browser) {
-      browser.close()
+      await browser.close()
       delete sessions[id]
       const userDataDirPath = userDataDirFromId(id)
       try {
-        sleep(5000).then(() => {
-          deleteFolderRecursive(userDataDirPath)
-        })
-        return true
-      } catch (error) {
-        log.debug(`Error deleting browser session folder. ${error.message}`)
-        return false
-      }      
+        await sleep(5000)
+        deleteFolderRecursive(userDataDirPath)
+      } catch (e) {
+        console.log(e)
+        throw Error(`Error deleting browser session folder. ${e.message}`)
+      }
+      return true
     }
     return false
   },

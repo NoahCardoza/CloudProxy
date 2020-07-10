@@ -84,8 +84,8 @@ const routes = {
   'sessions.list': (ctx) => {
     ctx.successResponse(null, { sessions: sessions.list() })
   },
-  'sessions.destroy': (ctx, { session }) => {
-    if (sessions.destroy(session)) { return ctx.successResponse('The session has been removed.') }
+  'sessions.destroy': async (ctx, { session }) => {
+    if (await sessions.destroy(session)) { return ctx.successResponse('The session has been removed.') }
     ctx.errorResponse('This session does not exist.')
   },
   'request.get': async (ctx, params) => {
