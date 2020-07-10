@@ -1,5 +1,7 @@
 const fs = require('fs')
 const Path = require('path')
+const { promisify } = require('util')
+const sleep = promisify(setTimeout)
 
 // recursive fs.rmdir needs node version 12:
 // https://github.com/ngosang/FlareSolverr/issues/5#issuecomment-655572712
@@ -18,5 +20,6 @@ function deleteFolderRecursive (path) {
 }
 
 module.exports = {
-  deleteFolderRecursive
+  deleteFolderRecursive,
+  sleep
 }
