@@ -20,4 +20,4 @@ ENV HOST=0.0.0.0
 # ENV HARVESTER_ENDPOINT=https://127.0.0.1:5000/token
 
 EXPOSE 8191
-CMD [ "node", "index.js" ]
+CMD [ "npm", "start" ]

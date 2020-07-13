@@ -177,6 +177,11 @@ docker build -t flaresolverr:latest .
 docker run --restart=always --name flaresolverr -p 8191:8191 -d flaresolverr:latest
 ```
 
+## TypeScript
+
+I'm quite new to TypeScript. If you spot any funny business or anything that is or isn't being
+used properly feel free to submit a PR or open an issue.
+
 ## Known issues / Roadmap
 
 The current implementation seems to be working on the sites I have been testing them on. However, if you find it unable to access a site, open an issue and I'd be happy to investigate.
