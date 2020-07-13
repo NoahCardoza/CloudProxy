@@ -1,13 +1,14 @@
-const fs = require('fs')
-const Path = require('path')
-const { promisify } = require('util')
-const sleep = promisify(setTimeout)
+import * as fs from 'fs'
+import * as Path from 'path'
+import { promisify } from 'util'
+
+export const sleep = promisify(setTimeout)
 
 // recursive fs.rmdir needs node version 12:
 // https://github.com/ngosang/FlareSolverr/issues/5#issuecomment-655572712
-function deleteFolderRecursive (path) {
+export function deleteFolderRecursive(path: string) {
   if (fs.existsSync(path)) {
-    fs.readdirSync(path).forEach((file, index) => {
+    fs.readdirSync(path).forEach((file) => {
       const curPath = Path.join(path, file)
       if (fs.lstatSync(curPath).isDirectory()) { // recurse
         deleteFolderRecursive(curPath)
@@ -17,9 +18,4 @@ function deleteFolderRecursive (path) {
     })
     fs.rmdirSync(path)
   }
-}
-
-module.exports = {
-  deleteFolderRecursive,
-  sleep
 }
