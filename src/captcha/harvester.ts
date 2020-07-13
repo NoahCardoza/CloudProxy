@@ -1,4 +1,5 @@
-const { get, sleep } = require('./index')
+import got from 'got'
+import { sleep } from '../utils'
 
 /*
     This method uses the captcha-harvester project:
@@ -14,17 +15,16 @@ const { get, sleep } = require('./index')
         E.G. "https://127.0.0.1:5000/token"
 */
 
-module.exports = async function solve (url, sitekey, type) {
+export default async function solve(): Promise<string> {
   const endpoint = process.env.HARVESTER_ENDPOINT
   if (!endpoint) { throw Error('ENV variable `HARVESTER_ENDPOINT` must be set.') }
-
-  // work around for the harvester's self-signed cert
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
   while (true) {
-    const { body, res } = await get(process.env.HARVESTER_ENDPOINT)
-    if (res.statusCode === 200) {
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '1'
-      return body
+    try {
+      return (await got.get(process.env.HARVESTER_ENDPOINT, {
+        https: { rejectUnauthorized: false }
+      })).body
+    } catch (e) {
+      if (e.response.statusCode !== 418) { throw e }
     }
     await sleep(3000)
   }

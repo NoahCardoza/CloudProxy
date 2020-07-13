@@ -1,26 +1,32 @@
 {
-  "name": "flaresolverr",
+  "name": "cloud-proxy",
   "version": "1.0.0",
-  "description": "Proxy server to bypass Cloudflare protection",
+  "description": "Proxy server to bypass Cloudflare protection.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon index.js"
+    "test": "which ts-node",
+    "dev": "nodemon -e ts --exec ts-node src/index.ts",
+    "start": "ts-node src/index.ts"
   },
-  "author": "Diego Heras (ngosang)",
+  "author": "Noah Cardoza (Discord: MacHacker#7322)",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ngosang/FlareSolverr.git"
+    "url": "https://github.com/NoahCardoza/CloudProxy.git"
   },
   "dependencies": {
     "console-log-level": "^1.4.1",
+    "got": "^11.5.0",
     "puppeteer": "^3.3.0",
     "puppeteer-extra": "^3.1.9",
     "puppeteer-extra-plugin-stealth": "^2.4.9",
+    "typescript": "^3.9.6",
     "uuid": "^8.1.0"
   },
   "devDependencies": {
+    "@types/node": "^14.0.22",
+    "@types/puppeteer": "^3.0.1",
+    "@types/uuid": "^8.0.0",
     "eslint": "^7.4.0",
     "eslint-config-airbnb-base": "^14.2.0",
     "eslint-config-standard": "^14.1.1",
@@ -28,6 +34,7 @@
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^4.0.1",
+    "ts-node": "^8.10.2",
     "nodemon": "^2.0.4"
   }
 }
