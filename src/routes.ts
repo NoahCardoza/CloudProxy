@@ -45,7 +45,7 @@ interface ChallenegeResolutionT {
 const CHALLENGE_SELECTORS = ['.ray_id', '.attack-box']
 const TOKEN_INPUT_NAMES = ['g-recaptcha-response', 'h-captcha-response']
 
-async function resolveCallenge(ctx: RequestContext, params: BaseRequestAPICall, browser: Browser): Promise<ChallenegeResolutionT | void> {
+async function resolveChallenge(ctx: RequestContext, params: BaseRequestAPICall, browser: Browser): Promise<ChallenegeResolutionT | void> {
   const page = await browser.newPage()
   if (params.userAgent) { await page.setUserAgent(params.userAgent) }
   const userAgent = await page.evaluate(() => navigator.userAgent)
@@ -72,7 +72,7 @@ async function resolveCallenge(ctx: RequestContext, params: BaseRequestAPICall, 
       return ctx.errorResponse('Cloudflare has blocked this request (Code 1020 Detected).')
     }
 
-    if (response.status() === 403) {
+    if (response.status() > 400) {
       // detect cloudflare wait 5s
       for (const selector of CHALLENGE_SELECTORS) {
         const cfChallenegeElem = await page.$(selector)
@@ -213,7 +213,7 @@ export const routes: Routes = {
       return ctx.errorResponse('This session does not exist. Use \'list_sessions\' to see all the existing sessions.')
     }
 
-    const data = await resolveCallenge(ctx, params, browser)
+    const data = await resolveChallenge(ctx, params, browser)
 
     if (data) {
       ctx.successResponse(data.message, {
