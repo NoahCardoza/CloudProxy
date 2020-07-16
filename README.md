@@ -37,7 +37,10 @@ curl -L -X POST 'http://localhost:8191/v1' \
   "cmd": "request.get",
   "url":"http://www.google.com/",
   "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.0 Safari/537.36",
-  "maxTimeout": 60000
+  "maxTimeout": 60000,
+  "headers": {
+    "X-Test": "Testing 123..."
+  }
 }'
 ```
 
@@ -94,45 +97,63 @@ session | Optional. Will send the request from and existing browser instance. If
 maxTimeout | Optional. Max timeout to solve the challenge
 cookies | Optional. Will be used by the headless browser. Follow [this](https://github.com/puppeteer/puppeteer/blob/v3.3.0/docs/api.md#pagesetcookiecookies) format
 
-Example response:
+Example response from running the `curl` above:
 
 ```json
 {
-  "status": "ok",
-  "message": "",
-  "startTimestamp": 1591679463498,
-  "endTimestamp": 1591679472781,
-  "version": "1.0.0",
-  "solution": {
-    "url": "https://www.google.com/?gws_rd=ssl",
-    "response": "<!DOCTYPE html><html ...",
-    "cookies": [
-      {
-        "name": "ANID",
-        "value": "AHWqTUnRRMcmD0SxIOLAhv88SiY555FZpb4jeYCaSNZPHtYyBuY85AmaZEqLFTHe",
-        "domain": ".google.com",
-        "path": "/",
-        "expires": 1625375465.915947,
-        "size": 68,
-        "httpOnly": true,
-        "secure": true,
-        "session": false,
-        "sameSite": "None"
-      },
-      {
-        "name": "1P_JAR",
-        "value": "2020-6-9-5",
-        "domain": ".google.com",
-        "path": "/",
-        "expires": 1594271465,
-        "size": 16,
-        "httpOnly": false,
-        "secure": true,
-        "session": false
-      }
-    ],
-    "userAgent": " Mozilla/5.0 (X11; Linux x86_64; rv:76.0) Gecko/20100101 Firefox/76.0"
-  }
+    "solution": {
+        "url": "https://www.google.com/?gws_rd=ssl",
+        "status": 200,
+        "headers": {
+            "status": "200",
+            "date": "Thu, 16 Jul 2020 04:15:49 GMT",
+            "expires": "-1",
+            "cache-control": "private, max-age=0",
+            "content-type": "text/html; charset=UTF-8",
+            "strict-transport-security": "max-age=31536000",
+            "p3p": "CP=\"This is not a P3P policy! See g.co/p3phelp for more info.\"",
+            "content-encoding": "br",
+            "server": "gws",
+            "content-length": "61587",
+            "x-xss-protection": "0",
+            "x-frame-options": "SAMEORIGIN",
+            "set-cookie": "1P_JAR=2020-07-16-04; expires=Sat, 15-Aug-2020 04:15:49 GMT; path=/; domain=.google.com; Secure; SameSite=none\nNID=204=QE3Ocq15XalczqjuDy52HeseG3zAZuJzID3R57g_oeQHyoV5DuvDhpWc4r9IcPoeIYmkr_ZTX_MNOU8IAbtXmVO7Bmq0adb-hpIHaTBIdBk3Ofifp4gO6vZleVuFYfj7ePkHeHdzGoX-en0FvKtd9iofX4O6RiAdEIAnpL7Wge4; expires=Fri, 15-Jan-2021 04:15:49 GMT; path=/; domain=.google.com; Secure; HttpOnly; SameSite=none",
+            "alt-svc": "h3-29=\":443\"; ma=2592000,h3-27=\":443\"; ma=2592000,h3-25=\":443\"; ma=2592000,h3-T050=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\""
+        },
+        "response":"<!DOCTYPE html>...",
+        "cookies": [
+            {
+                "name": "NID",
+                "value": "204=QE3Ocq15XalczqjuDy52HeseG3zAZuJzID3R57g_oeQHyoV5DuvDhpWc4r9IcPoeIYmkr_ZTX_MNOU8IAbtXmVO7Bmq0adb-hpIHaTBIdBk3Ofifp4gO6vZleVuFYfj7ePkHeHdzGoX-en0FvKtd9iofX4O6RiAdEIAnpL7Wge4",
+                "domain": ".google.com",
+                "path": "/",
+                "expires": 1610684149.307722,
+                "size": 178,
+                "httpOnly": true,
+                "secure": true,
+                "session": false,
+                "sameSite": "None"
+            },
+            {
+                "name": "1P_JAR",
+                "value": "2020-07-16-04",
+                "domain": ".google.com",
+                "path": "/",
+                "expires": 1597464949.307626,
+                "size": 19,
+                "httpOnly": false,
+                "secure": true,
+                "session": false,
+                "sameSite": "None"
+            }
+        ],
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.0 Safari/537.36"
+    },
+    "status": "ok",
+    "message": "",
+    "startTimestamp": 1594872947467,
+    "endTimestamp": 1594872949617,
+    "version": "1.0.0"
 }
 ```
 
