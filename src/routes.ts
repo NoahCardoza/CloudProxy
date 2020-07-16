@@ -2,7 +2,7 @@ import { v1 as UUIDv1 } from 'uuid'
 import * as sessions from './session'
 import { RequestContext } from './types'
 import log from './log'
-import { Browser, SetCookie, Request, Page } from 'puppeteer'
+import { Browser, SetCookie, Request, Page, Headers } from 'puppeteer'
 import getCaptchaSolver, { CaptchaType } from './captcha'
 import { Context } from 'vm'
 
@@ -17,8 +17,6 @@ interface BaseSessionsAPICall extends BaseAPICall {
 interface SessionsCreateAPICall extends BaseSessionsAPICall {
   userAgent?: string
 }
-
-type Headers = { [key: string]: string }
 
 interface BaseRequestAPICall extends BaseAPICall {
   url: string
