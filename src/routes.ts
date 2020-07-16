@@ -2,8 +2,9 @@ import { v1 as UUIDv1 } from 'uuid'
 import * as sessions from './session'
 import { RequestContext } from './types'
 import log from './log'
-import { Browser, SetCookie } from 'puppeteer'
+import { Browser, SetCookie, Request, Page } from 'puppeteer'
 import getCaptchaSolver, { CaptchaType } from './captcha'
+import { Context } from 'vm'
 
 export interface BaseAPICall {
   cmd: string
@@ -17,12 +18,15 @@ interface SessionsCreateAPICall extends BaseSessionsAPICall {
   userAgent?: string
 }
 
+type Headers = { [key: string]: string }
+
 interface BaseRequestAPICall extends BaseAPICall {
   url: string
   session?: string
   userAgent?: string
   maxTimeout?: number
-  cookies?: SetCookie[]
+  cookies?: SetCookie[],
+  headers?: Headers
 }
 
 
@@ -42,26 +46,40 @@ interface ChallenegeResolutionT {
   result: ChallenegeResolutionResultT
 }
 
+
+
+const addHeaders = (headers: Headers) => {
+  /* 
+    added `once` flag since using removeListener causes 
+    page next page load to hang for some reason
+  */
+
+  let once = false
+
+  const callback = (request: Request) => {
+    if (once || !request.isNavigationRequest()) {
+      request.continue()
+      return
+    }
+
+    once = true
+    request.continue({
+      headers: Object.assign(request.headers(), headers)
+    })
+  }
+  return callback
+}
+
 const CHALLENGE_SELECTORS = ['.ray_id', '.attack-box']
 const TOKEN_INPUT_NAMES = ['g-recaptcha-response', 'h-captcha-response']
 
-async function resolveChallenge(ctx: RequestContext, params: BaseRequestAPICall, browser: Browser): Promise<ChallenegeResolutionT | void> {
-  const page = await browser.newPage()
-  if (params.userAgent) { await page.setUserAgent(params.userAgent) }
-  const userAgent = await page.evaluate(() => navigator.userAgent)
-  log.debug(`User-Agent: ${userAgent}`)
-  const reqUrl = params.url
-  const reqMaxTimeout = params.maxTimeout || 60000
-  const reqCookies = params.cookies
+async function resolveChallenge(ctx: RequestContext, { url, maxTimeout }: BaseRequestAPICall, page: Page): Promise<ChallenegeResolutionT | void> {
+
+  maxTimeout = maxTimeout || 60000
   let message = ''
 
-  if (reqCookies) {
-    log.debug('Using custom cookies')
-    await page.setCookie(...(reqCookies))
-  }
-
-  log.debug(`Navegating to... ${reqUrl}`)
-  const response = await page.goto(reqUrl, { waitUntil: 'domcontentloaded' })
+  log.debug(`Navegating to... ${url}`)
+  const response = await page.goto(url, { waitUntil: 'domcontentloaded' })
 
   // look for challenge
   if (response.headers().server.startsWith('cloudflare')) {
@@ -81,7 +99,7 @@ async function resolveChallenge(ctx: RequestContext, params: BaseRequestAPICall,
           log.debug('Waiting for Cloudflare challenge...')
 
           // TODO: find out why these pages hang sometimes
-          while (Date.now() - ctx.startTimestamp < reqMaxTimeout) {
+          while (Date.now() - ctx.startTimestamp < maxTimeout) {
             await page.waitFor(1000)
             try {
               // catch exception timeout in waitForNavigation
@@ -97,8 +115,8 @@ async function resolveChallenge(ctx: RequestContext, params: BaseRequestAPICall,
             log.debug('Reloaded page...')
           }
 
-          if (Date.now() - ctx.startTimestamp >= reqMaxTimeout) {
-            ctx.errorResponse(`Maximum timeout reached. maxTimeout=${reqMaxTimeout} (ms)`)
+          if (Date.now() - ctx.startTimestamp >= maxTimeout) {
+            ctx.errorResponse(`Maximum timeout reached. maxTimeout=${maxTimeout} (ms)`)
             return
           }
 
@@ -129,7 +147,7 @@ async function resolveChallenge(ctx: RequestContext, params: BaseRequestAPICall,
 
           log.info('Waiting to recive captcha token to bypass challenge...')
           const token = await captchaSolver({
-            hostname: (new URL(reqUrl)).hostname,
+            hostname: (new URL(url)).hostname,
             sitekey,
             type: captchaType
           })
@@ -167,32 +185,52 @@ async function resolveChallenge(ctx: RequestContext, params: BaseRequestAPICall,
     }
   }
 
-  const url = page.url()
-  log.debug(`Response URL: ${url}`)
-  const cookies = await page.cookies()
-  log.debug(`Response cookies: ${JSON.stringify(cookies)}`)
-  const html = await page.content()
-  log.html(html)
+  const payload = {
+    message,
+    result: {
+      url: page.url(),
+      status: response.status(),
+      headers: response.headers(),
+      response: await page.content(),
+      cookies: await page.cookies(),
+      userAgent: await page.evaluate(() => navigator.userAgent)
+    }
+  }
 
   // make sure the page is closed becaue if it isn't and error will be thrown
   // when a user uses a temporary session, the browser make be quit before
   // the page is properly closed.
   await page.close()
 
-  return {
-    message,
-    result: {
-      url,
-      response: html,
-      cookies,
-      userAgent
-    }
+  return payload
+}
+
+async function setupPage(ctx: Context, { userAgent, headers, cookies }: BaseRequestAPICall, browser: Browser): Promise<Page> {
+  const page = await browser.newPage()
+
+  if (userAgent) {
+    log.debug(`Using custom UA: ${userAgent}`)
+    await page.setUserAgent(userAgent)
   }
+
+  if (headers) {
+    log.debug(`Adding custom headers: ${JSON.stringify(headers, null, 2)}`,)
+    await page.setRequestInterception(true)
+    page.on('request', addHeaders(headers))
+  }
+
+  if (cookies) {
+    log.debug(`Setting custom cookies: ${JSON.stringify(cookies, null, 2)}`,)
+    await page.setCookie(...cookies)
+  }
+
+  return page
 }
 
 export const routes: Routes = {
   'sessions.create': async (ctx, { session, userAgent }: SessionsCreateAPICall) => {
-    const browser = await sessions.create(session || UUIDv1(), { userAgent })
+    session = session || UUIDv1()
+    const browser = await sessions.create(session, { userAgent })
     if (browser) { ctx.successResponse('Session created successfully.', { session }) }
   },
   'sessions.list': (ctx) => {
@@ -213,7 +251,8 @@ export const routes: Routes = {
       return ctx.errorResponse('This session does not exist. Use \'list_sessions\' to see all the existing sessions.')
     }
 
-    const data = await resolveChallenge(ctx, params, browser)
+    const page = await setupPage(ctx, params, browser)
+    const data = await resolveChallenge(ctx, params, page)
 
     if (data) {
       ctx.successResponse(data.message, {

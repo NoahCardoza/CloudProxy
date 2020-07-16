@@ -19,7 +19,7 @@ const sessionCache: SessionsCache = {}
 puppeteer.use(require('puppeteer-extra-plugin-stealth')())
 
 function userDataDirFromId(id: string): string {
-  return path.join(os.tmpdir(), `/puppeteer_firefox_profile_${id}`)
+  return path.join(os.tmpdir(), `/puppeteer_chrome_profile_${id}`)
 }
 
 function prepareBrowserProfile(userAgent: string, id: string): string {
@@ -36,7 +36,7 @@ function prepareBrowserProfile(userAgent: string, id: string): string {
 
 export const create = async (id: string, { userAgent }: { userAgent: string }): Promise<Browser> => {
   const puppeteerOptions: LaunchOptions = {
-    product: 'firefox',
+    product: 'chrome',
     headless: true
   }
 
