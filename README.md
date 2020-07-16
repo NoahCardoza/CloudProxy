@@ -10,7 +10,7 @@ See the known issues section.
 CloudProxy starts a proxy server and it waits for user requests in an idle state using few resources.
 When some request arrives, it uses [puppeteer](https://github.com/puppeteer/puppeteer) with the
 [stealth plugin](https://github.com/berstend/puppeteer-extra/tree/master/packages/puppeteer-extra-plugin-stealth)
-to create a headless browser (Firefox). It opens the URL with user parameters and waits until the
+to create a headless browser (Chrome). It opens the URL with user parameters and waits until the
 Cloudflare challenge is solved (or timeout). The HTML code and the cookies are sent back to the
 user and those cookies can be used to bypass Cloudflare using other HTTP clients.
 
@@ -22,7 +22,7 @@ do not make many requests at once. With each request a new browser is launched u
 
 It requires NodeJS.
 
-Run `PUPPETEER_PRODUCT=firefox npm install` to install CloudProxy dependencies.
+Run `PUPPETEER_PRODUCT=chrome npm install` to install CloudProxy dependencies.
 
 ## Usage
 
@@ -36,7 +36,7 @@ curl -L -X POST 'http://localhost:8191/v1' \
 --data-raw '{
   "cmd": "request.get",
   "url":"http://www.google.com/",
-  "userAgent": "Mozilla/5.0 (X11; Linux x86_64; rv:76.0) Gecko/20100101 Firefox/76.0",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.0 Safari/537.36",
   "maxTimeout": 60000
 }'
 ```
