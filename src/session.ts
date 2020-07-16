@@ -29,8 +29,6 @@ function prepareBrowserProfile(userAgent: string, id: string): string {
     fs.mkdirSync(userDataDir, { recursive: true })
   }
 
-  const prefs = `user_pref("general.useragent.override", "${userAgent}");`
-  fs.writeFile(path.join(userDataDir, 'prefs.js'), prefs, () => { })
   return userDataDir
 }
 
