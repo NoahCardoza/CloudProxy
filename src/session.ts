@@ -3,13 +3,42 @@ import * as path from 'path'
 import * as fs from 'fs'
 
 import puppeteer from 'puppeteer-extra'
-import { LaunchOptions, Browser } from 'puppeteer'
+import { LaunchOptions, Browser, Headers, SetCookie } from 'puppeteer'
 
 import log from './log'
 import { deleteFolderRecursive, sleep } from './utils'
 
+interface SessionPageDefaults {
+  headers?: Headers
+  userAgent?: string
+}
+
+export interface SessionsCacheItem {
+  browser: Browser
+  userDataDir?: string
+  defaults: SessionPageDefaults
+}
+
 interface SessionsCache {
-  [key: string]: Browser;
+  [key: string]: SessionsCacheItem
+}
+
+interface SessionCreateOptions {
+  oneTimeSession?: boolean
+  userAgent?: string
+  cookies?: SetCookie[]
+  headers?: Headers,
+  maxTimeout?: number
+}
+
+const removeEmptyFields = (o: Record<string, any>): typeof o => {
+  const r: typeof o = {}
+  for (const k in o) {
+    if (o[k] !== undefined) {
+      r[k] = o[k]
+    }
+  }
+  return r
 }
 
 const sessionCache: SessionsCache = {}
@@ -22,7 +51,8 @@ function userDataDirFromId(id: string): string {
   return path.join(os.tmpdir(), `/puppeteer_chrome_profile_${id}`)
 }
 
-function prepareBrowserProfile(userAgent: string, id: string): string {
+function prepareBrowserProfile(id: string): string {
+  // TODO: maybe pass SessionCreateOptions for loading later?
   const userDataDir = userDataDirFromId(id)
 
   if (!fs.existsSync(userDataDir)) {
@@ -32,46 +62,79 @@ function prepareBrowserProfile(userAgent: string, id: string): string {
   return userDataDir
 }
 
-export const create = async (id: string, { userAgent }: { userAgent: string }): Promise<Browser> => {
+export const create = async (id: string, { cookies, oneTimeSession, userAgent, headers, maxTimeout }: SessionCreateOptions): Promise<SessionsCacheItem> => {
   const puppeteerOptions: LaunchOptions = {
     product: 'chrome',
     headless: true
   }
 
-  if (userAgent) {
-    log.debug(`Using custom User-Agent: ${userAgent}`)
-    puppeteerOptions.userDataDir = prepareBrowserProfile(userAgent, id)
+  if (!oneTimeSession) {
+    log.debug('Creating userDataDir for session.')
+    puppeteerOptions.userDataDir = prepareBrowserProfile(id)
   }
 
   log.debug('Launching headless browser...')
 
-  // TODO: try and launch the browser at least 3 times before sending back
-  // "Error: Failed to launch the browser process!"
-  const browser = await puppeteer.launch(puppeteerOptions)
-  sessionCache[id] = browser
+  // TODO: maybe access env variable?
+  // TODO: sometimes browser instances are created and not connected to correctly.
+  //       how do we handle/quit those instances inside Docker?
+  let launchTries = 3
+  let browser;
 
-  return browser
+  while (0 <= launchTries--) {
+    try {
+      browser = await puppeteer.launch(puppeteerOptions)
+      break
+    } catch (e) {
+      if (e.message !== 'Failed to launch the browser process!')
+        throw e
+      log.warn('Failed to open browser, trying again...')
+    }
+  }
+
+  if (!browser) { throw Error(`Failed to lanch browser 3 times in a row.`) }
+
+  if (cookies) {
+    const page = await browser.newPage()
+    await page.setCookie(...cookies)
+  }
+
+  sessionCache[id] = {
+    browser,
+    userDataDir: puppeteerOptions.userDataDir,
+    defaults: removeEmptyFields({
+      userAgent,
+      headers,
+      maxTimeout
+    })
+  }
+
+  return sessionCache[id]
 }
 
 export const list = (): string[] => Object.keys(sessionCache)
 
+// TODO: create a sessions.close that doesn't rm the userDataDir
+
 export const destroy = async (id: string): Promise<boolean> => {
-  const browser = sessionCache[id]
+  const { browser, userDataDir } = sessionCache[id]
   if (browser) {
     await browser.close()
     delete sessionCache[id]
-    const userDataDirPath = userDataDirFromId(id)
-    try {
-      await sleep(5000)
-      deleteFolderRecursive(userDataDirPath)
-    } catch (e) {
-      console.log(e)
-      throw Error(`Error deleting browser session folder. ${e.message}`)
+    if (userDataDir) {
+      const userDataDirPath = userDataDirFromId(id)
+      try {
+        await sleep(5000)
+        deleteFolderRecursive(userDataDirPath)
+      } catch (e) {
+        console.log(e)
+        throw Error(`Error deleting browser session folder. ${e.message}`)
+      }
     }
     return true
   }
   return false
 }
 
-export const get = (id: string): Browser | false => sessionCache[id] || false
+export const get = (id: string): SessionsCacheItem | false => sessionCache[id] && sessionCache[id] || false
 

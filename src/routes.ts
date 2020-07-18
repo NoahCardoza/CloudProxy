@@ -15,7 +15,10 @@ interface BaseSessionsAPICall extends BaseAPICall {
 }
 
 interface SessionsCreateAPICall extends BaseSessionsAPICall {
-  userAgent?: string
+  userAgent?: string,
+  cookies?: SetCookie[],
+  headers?: Headers
+  maxTimeout?: number
 }
 
 interface BaseRequestAPICall extends BaseAPICall {
@@ -203,8 +206,20 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout }: BaseRe
   return payload
 }
 
-async function setupPage(ctx: Context, { userAgent, headers, cookies }: BaseRequestAPICall, browser: Browser): Promise<Page> {
+function mergeSessionWithParams({ defaults }: sessions.SessionsCacheItem, params: BaseRequestAPICall): BaseRequestAPICall {
+  const copy = { ...defaults, ...params }
+
+  // custom merging logic 
+  copy.headers = { ...defaults.headers || {}, ...params.headers || {} } || null
+
+  return copy
+}
+
+async function setupPage(ctx: Context, params: BaseRequestAPICall, browser: Browser): Promise<Page> {
   const page = await browser.newPage()
+
+  // merge session defaults with params
+  const { userAgent, headers, cookies } = params
 
   if (userAgent) {
     log.debug(`Using custom UA: ${userAgent}`)
@@ -226,9 +241,9 @@ async function setupPage(ctx: Context, { userAgent, headers, cookies }: BaseRequ
 }
 
 export const routes: Routes = {
-  'sessions.create': async (ctx, { session, userAgent }: SessionsCreateAPICall) => {
+  'sessions.create': async (ctx, { session, ...options }: SessionsCreateAPICall) => {
     session = session || UUIDv1()
-    const browser = await sessions.create(session, { userAgent })
+    const { browser } = await sessions.create(session, options)
     if (browser) { ctx.successResponse('Session created successfully.', { session }) }
   },
   'sessions.list': (ctx) => {
@@ -241,15 +256,22 @@ export const routes: Routes = {
   'request.get': async (ctx, params: BaseRequestAPICall) => {
     const oneTimeSession = params.session === undefined
     const sessionId = params.session || UUIDv1()
-    const browser = oneTimeSession
-      ? await sessions.create(sessionId, { userAgent: params.userAgent })
+    const session = oneTimeSession
+      ? await sessions.create(sessionId, {
+        userAgent: params.userAgent,
+        oneTimeSession
+      })
       : sessions.get(sessionId)
 
-    if (browser === false) {
+    if (session === false) {
       return ctx.errorResponse('This session does not exist. Use \'list_sessions\' to see all the existing sessions.')
     }
 
-    const page = await setupPage(ctx, params, browser)
+    params = mergeSessionWithParams(session, params)
+
+    console.log(params)
+
+    const page = await setupPage(ctx, params, session.browser)
     const data = await resolveChallenge(ctx, params, page)
 
     if (data) {
