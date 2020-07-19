@@ -102,5 +102,5 @@ createServer((req: IncomingMessage, res: ServerResponse) => {
     })
   })
 }).listen(serverPort, serverHost, () => {
-  log.info(`FlareSolverr v${version} listening on http://${serverHost}:${serverPort}`)
+  log.info(`CloudProxy v${version} listening on http://${serverHost}:${serverPort}`)
 })

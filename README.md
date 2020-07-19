@@ -195,8 +195,8 @@ More coming soon! PR's are welcome for any and all captcha solving methods and s
 You can edit environment variables in `./Dockerfile` and build your own image.
 
 ```bash
-docker build -t flaresolverr:latest .
-docker run --restart=always --name flaresolverr -p 8191:8191 -d flaresolverr:latest
+docker build -t cloudproxy:latest .
+docker run --restart=always --name cloudproxy -p 8191:8191 -d cloudproxy:latest
 ```
 
 ## TypeScript
