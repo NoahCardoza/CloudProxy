@@ -249,8 +249,16 @@ export const routes: Routes = {
   'sessions.list': (ctx) => {
     ctx.successResponse(null, { sessions: sessions.list() })
   },
+  'sessions.close': (ctx, { session }: BaseSessionsAPICall) => {
+    if (sessions.close(session)) {
+      return ctx.successResponse('The session has been closed.')
+    }
+    ctx.errorResponse('This session does not exist.')
+  },
   'sessions.destroy': async (ctx, { session }: BaseSessionsAPICall) => {
-    if (await sessions.destroy(session)) { return ctx.successResponse('The session has been removed.') }
+    if (await sessions.destroy(session)) {
+      return ctx.successResponse('The session has been destroyed.')
+    }
     ctx.errorResponse('This session does not exist.')
   },
   'request.get': async (ctx, params: BaseRequestAPICall) => {

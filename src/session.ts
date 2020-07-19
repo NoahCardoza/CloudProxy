@@ -32,13 +32,10 @@ interface SessionCreateOptions {
 }
 
 const sessionCache: SessionsCache = {}
-
-// setting "user-agent-override" evasion is not working for us because it can't be changed
-// in each request. we set the user-agent in the browser args instead
-puppeteer.use(require('puppeteer-extra-plugin-stealth')())
+const USER_DATA_DIR_PARENT = process.env.USER_DATA_DIR_PARENT || os.tmpdir()
 
 function userDataDirFromId(id: string): string {
-  return path.join(os.tmpdir(), `/puppeteer_chrome_profile_${id}`)
+  return path.join(USER_DATA_DIR_PARENT, `cp_profile_${id}`)
 }
 
 function prepareBrowserProfile(id: string): string {
@@ -52,7 +49,9 @@ function prepareBrowserProfile(id: string): string {
   return userDataDir
 }
 
-export default {
+puppeteer.use(require('puppeteer-extra-plugin-stealth')())
+
+const methods = {
   create: async (id: string, { cookies, oneTimeSession, userAgent, headers, maxTimeout }: SessionCreateOptions): Promise<SessionsCacheItem> => {
     const puppeteerOptions: LaunchOptions = {
       product: 'chrome',
@@ -105,8 +104,19 @@ export default {
 
   list: (): string[] => Object.keys(sessionCache),
 
-  // TODO: create a sessions.close that doesn't rm the userDataDir
+  close: (id: string): boolean => {
+    // prevents bloating in the temp directory
+    if (!process.env.USER_DATA_DIR_PARENT) {
+      throw Error('Can only close sessions when using USER_DATA_DIR_PARENT=...')
+    }
 
+    const { browser } = sessionCache[id]
+    if (browser) {
+      browser.close()
+      return true
+    }
+    return false
+  },
   destroy: async (id: string): Promise<boolean> => {
     const { browser, userDataDir } = sessionCache[id]
     if (browser) {
@@ -130,3 +140,5 @@ export default {
 
   get: (id: string): SessionsCacheItem | false => sessionCache[id] && sessionCache[id] || false
 }
+
+export default methods
