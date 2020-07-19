@@ -6,7 +6,7 @@ import puppeteer from 'puppeteer-extra'
 import { LaunchOptions, Browser, Headers, SetCookie } from 'puppeteer'
 
 import log from './log'
-import { deleteFolderRecursive, sleep } from './utils'
+import { deleteFolderRecursive, sleep, removeEmptyFields } from './utils'
 
 interface SessionPageDefaults {
   headers?: Headers
@@ -31,16 +31,6 @@ interface SessionCreateOptions {
   maxTimeout?: number
 }
 
-const removeEmptyFields = (o: Record<string, any>): typeof o => {
-  const r: typeof o = {}
-  for (const k in o) {
-    if (o[k] !== undefined) {
-      r[k] = o[k]
-    }
-  }
-  return r
-}
-
 const sessionCache: SessionsCache = {}
 
 // setting "user-agent-override" evasion is not working for us because it can't be changed
@@ -62,79 +52,81 @@ function prepareBrowserProfile(id: string): string {
   return userDataDir
 }
 
-export const create = async (id: string, { cookies, oneTimeSession, userAgent, headers, maxTimeout }: SessionCreateOptions): Promise<SessionsCacheItem> => {
-  const puppeteerOptions: LaunchOptions = {
-    product: 'chrome',
-    headless: true
-  }
-
-  if (!oneTimeSession) {
-    log.debug('Creating userDataDir for session.')
-    puppeteerOptions.userDataDir = prepareBrowserProfile(id)
-  }
-
-  log.debug('Launching headless browser...')
-
-  // TODO: maybe access env variable?
-  // TODO: sometimes browser instances are created and not connected to correctly.
-  //       how do we handle/quit those instances inside Docker?
-  let launchTries = 3
-  let browser;
-
-  while (0 <= launchTries--) {
-    try {
-      browser = await puppeteer.launch(puppeteerOptions)
-      break
-    } catch (e) {
-      if (e.message !== 'Failed to launch the browser process!')
-        throw e
-      log.warn('Failed to open browser, trying again...')
+export default {
+  create: async (id: string, { cookies, oneTimeSession, userAgent, headers, maxTimeout }: SessionCreateOptions): Promise<SessionsCacheItem> => {
+    const puppeteerOptions: LaunchOptions = {
+      product: 'chrome',
+      headless: true
     }
-  }
 
-  if (!browser) { throw Error(`Failed to lanch browser 3 times in a row.`) }
+    if (!oneTimeSession) {
+      log.debug('Creating userDataDir for session.')
+      puppeteerOptions.userDataDir = prepareBrowserProfile(id)
+    }
 
-  if (cookies) {
-    const page = await browser.newPage()
-    await page.setCookie(...cookies)
-  }
+    log.debug('Launching headless browser...')
 
-  sessionCache[id] = {
-    browser,
-    userDataDir: puppeteerOptions.userDataDir,
-    defaults: removeEmptyFields({
-      userAgent,
-      headers,
-      maxTimeout
-    })
-  }
+    // TODO: maybe access env variable?
+    // TODO: sometimes browser instances are created and not connected to correctly.
+    //       how do we handle/quit those instances inside Docker?
+    let launchTries = 3
+    let browser;
 
-  return sessionCache[id]
-}
-
-export const list = (): string[] => Object.keys(sessionCache)
-
-// TODO: create a sessions.close that doesn't rm the userDataDir
-
-export const destroy = async (id: string): Promise<boolean> => {
-  const { browser, userDataDir } = sessionCache[id]
-  if (browser) {
-    await browser.close()
-    delete sessionCache[id]
-    if (userDataDir) {
-      const userDataDirPath = userDataDirFromId(id)
+    while (0 <= launchTries--) {
       try {
-        await sleep(5000)
-        deleteFolderRecursive(userDataDirPath)
+        browser = await puppeteer.launch(puppeteerOptions)
+        break
       } catch (e) {
-        console.log(e)
-        throw Error(`Error deleting browser session folder. ${e.message}`)
+        if (e.message !== 'Failed to launch the browser process!')
+          throw e
+        log.warn('Failed to open browser, trying again...')
       }
     }
-    return true
-  }
-  return false
+
+    if (!browser) { throw Error(`Failed to lanch browser 3 times in a row.`) }
+
+    if (cookies) {
+      const page = await browser.newPage()
+      await page.setCookie(...cookies)
+    }
+
+    sessionCache[id] = {
+      browser,
+      userDataDir: puppeteerOptions.userDataDir,
+      defaults: removeEmptyFields({
+        userAgent,
+        headers,
+        maxTimeout
+      })
+    }
+
+    return sessionCache[id]
+  },
+
+  list: (): string[] => Object.keys(sessionCache),
+
+  // TODO: create a sessions.close that doesn't rm the userDataDir
+
+  destroy: async (id: string): Promise<boolean> => {
+    const { browser, userDataDir } = sessionCache[id]
+    if (browser) {
+      await browser.close()
+      delete sessionCache[id]
+      if (userDataDir) {
+        const userDataDirPath = userDataDirFromId(id)
+        try {
+          // for some reason this keeps an error from being thrown in Windows, figures
+          await sleep(5000)
+          deleteFolderRecursive(userDataDirPath)
+        } catch (e) {
+          console.log(e)
+          throw Error(`Error deleting browser session folder. ${e.message}`)
+        }
+      }
+      return true
+    }
+    return false
+  },
+
+  get: (id: string): SessionsCacheItem | false => sessionCache[id] && sessionCache[id] || false
 }
-
-export const get = (id: string): SessionsCacheItem | false => sessionCache[id] && sessionCache[id] || false
-

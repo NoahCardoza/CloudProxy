@@ -1,5 +1,5 @@
 import { v1 as UUIDv1 } from 'uuid'
-import * as sessions from './session'
+import sessions, { SessionsCacheItem } from './session'
 import { RequestContext } from './types'
 import log from './log'
 import { Browser, SetCookie, Request, Page, Headers } from 'puppeteer'
@@ -206,7 +206,7 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout }: BaseRe
   return payload
 }
 
-function mergeSessionWithParams({ defaults }: sessions.SessionsCacheItem, params: BaseRequestAPICall): BaseRequestAPICall {
+function mergeSessionWithParams({ defaults }: SessionsCacheItem, params: BaseRequestAPICall): BaseRequestAPICall {
   const copy = { ...defaults, ...params }
 
   // custom merging logic 
