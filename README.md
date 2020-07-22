@@ -224,3 +224,9 @@ TODO:
 ## Credits
 
 Based off of ngosang's [FlareSolverr](https://github.com/ngosang/FlareSolverr).
+
+For help contact @`MacHacker#7322` (Discord)
+
+Has CloudProxy saved or made you money on your project? Consider buying me a coffee!
+
+[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/noahcardoza)
