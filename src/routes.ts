@@ -19,6 +19,7 @@ interface SessionsCreateAPICall extends BaseSessionsAPICall {
   cookies?: SetCookie[],
   headers?: Headers
   maxTimeout?: number
+  proxy?: any
 }
 
 interface BaseRequestAPICall extends BaseAPICall {
@@ -28,6 +29,7 @@ interface BaseRequestAPICall extends BaseAPICall {
   maxTimeout?: number
   cookies?: SetCookie[],
   headers?: Headers
+  proxy? : any
 }
 
 
@@ -50,8 +52,8 @@ interface ChallenegeResolutionT {
 
 
 const addHeaders = (headers: Headers) => {
-  /* 
-    added `once` flag since using removeListener causes 
+  /*
+    added `once` flag since using removeListener causes
     page next page load to hang for some reason
   */
 
@@ -74,10 +76,16 @@ const addHeaders = (headers: Headers) => {
 const CHALLENGE_SELECTORS = ['.ray_id', '.attack-box']
 const TOKEN_INPUT_NAMES = ['g-recaptcha-response', 'h-captcha-response']
 
-async function resolveChallenge(ctx: RequestContext, { url, maxTimeout }: BaseRequestAPICall, page: Page): Promise<ChallenegeResolutionT | void> {
+async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy }: BaseRequestAPICall, page: Page): Promise<ChallenegeResolutionT | void> {
 
   maxTimeout = maxTimeout || 60000
   let message = ''
+
+    if(proxy){
+        log.debug("Apply proxy");
+        if(proxy.username)
+            await page.authenticate({ username:proxy.username, password: proxy.password });
+    }
 
   log.debug(`Navegating to... ${url}`)
   const response = await page.goto(url, { waitUntil: 'domcontentloaded' })
@@ -209,7 +217,7 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout }: BaseRe
 function mergeSessionWithParams({ defaults }: SessionsCacheItem, params: BaseRequestAPICall): BaseRequestAPICall {
   const copy = { ...defaults, ...params }
 
-  // custom merging logic 
+  // custom merging logic
   copy.headers = { ...defaults.headers || {}, ...params.headers || {} } || null
 
   return copy
