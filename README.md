@@ -71,10 +71,10 @@ Example response:
 ```json
 {
   "sessions": [
-    "session_id",
-    ...
-  ],
-  ...
+    "session_id_1",
+    "session_id_2",
+    "session_id_3..."
+  ]
 }
 ```
 
