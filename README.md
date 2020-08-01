@@ -157,6 +157,16 @@ Example response from running the `curl` above:
 }
 ```
 
+## Downloading Images and PDFs (small files)
+
+If you need to access an image/pdf or small file, you should pass the `download` parameter to
+`request.get` setting it to `true`. Rather than access the html and return text it will
+return a the buffer **base64** encoded which you will be able to decode and save the image/pdf.
+
+This method isn't recommended for videos or anything larger. As that should be streamed back to
+the client and at the moment there is nothing setup to do so. If this is something you need feel
+free to create an issue and/or submit a PR.
+
 ## Environment variables
 
 To set the environment vars in Linux run `export LOG_LEVEL=debug` and then start CloudProxy in the same shell.
@@ -171,6 +181,13 @@ CAPTCHA_SOLVER | None | This is used to select which captcha solving method it u
 
 ## Captcha Solvers
 
+Sometimes CF not only gives mathmatical computations and browser tests, sometimes they also require
+the user to solve a captcha. If this is the case, CloudProxy will return the captcha page. But that's
+not very helpful to you is it?
+
+CloudProxy can be customized to solve the captcha's automatically by setting the environment variable
+`CAPTCHA_SOLVER` to the file name of one of the adapters inside the [/captcha](src/captcha) directory.
+
 ### Harvester
 
 This method makes use of the [CaptchaHarvester](https://github.com/NoahCardoza/CaptchaHarvester) project. Which allows users to collect thier own tokens from ReCaptcha V2/V3 and hCaptcha for free.
@@ -184,11 +201,14 @@ HARVESTER_ENDPOINT=https://127.0.0.1:5000/token
 
 **Note**: above I set `HARVESTER_ENDPOINT` to the default configureation
 of the captcha harvester's server, but that could change if
-you customize the command line flags. Simply put, `HARVESTER_ENDPOINT` should be set to the URI of the route that returns a token in plain text when called.
+you customize the command line flags. Simply put, `HARVESTER_ENDPOINT`
+should be set to the URI of the route that returns a token in plain text when called.
 
-### Other options
+### Other Options
 
-More coming soon! PR's are welcome for any and all captcha solving methods and services.
+Everyone likes more options to choose from. Help contribute to the projects by submitting
+PR requests for other 3rd party captcha solves or your own projects.
+PR's are welcome for any and all captcha solving methods and services.
 
 ## Docker
 

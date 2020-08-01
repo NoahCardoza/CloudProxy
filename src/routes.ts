@@ -29,7 +29,8 @@ interface BaseRequestAPICall extends BaseAPICall {
   maxTimeout?: number
   cookies?: SetCookie[],
   headers?: Headers
-  proxy? : any
+  proxy?: any, // TODO: use interface not any
+  download?: boolean
 }
 
 
@@ -39,6 +40,8 @@ interface Routes {
 
 interface ChallenegeResolutionResultT {
   url: string
+  status: number,
+  headers?: Headers,
   response: string,
   cookies: object[]
   userAgent: string
@@ -76,19 +79,19 @@ const addHeaders = (headers: Headers) => {
 const CHALLENGE_SELECTORS = ['.ray_id', '.attack-box']
 const TOKEN_INPUT_NAMES = ['g-recaptcha-response', 'h-captcha-response']
 
-async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy }: BaseRequestAPICall, page: Page): Promise<ChallenegeResolutionT | void> {
+async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, download }: BaseRequestAPICall, page: Page): Promise<ChallenegeResolutionT | void> {
 
   maxTimeout = maxTimeout || 60000
   let message = ''
 
-    if(proxy){
-        log.debug("Apply proxy");
-        if(proxy.username)
-            await page.authenticate({ username:proxy.username, password: proxy.password });
-    }
+  if (proxy) {
+    log.debug("Apply proxy");
+    if (proxy.username)
+      await page.authenticate({ username: proxy.username, password: proxy.password });
+  }
 
   log.debug(`Navegating to... ${url}`)
-  const response = await page.goto(url, { waitUntil: 'domcontentloaded' })
+  let response = await page.goto(url, { waitUntil: 'domcontentloaded' })
 
   // look for challenge
   if (response.headers().server.startsWith('cloudflare')) {
@@ -119,8 +122,7 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy }:
             if (!cfChallenegeElem) { break }
             log.debug('Found challenege element again...')
 
-            page.reload()
-            await page.waitForNavigation({ waitUntil: 'domcontentloaded' })
+            response = await page.reload({ waitUntil: 'domcontentloaded' })
             log.debug('Reloaded page...')
           }
 
@@ -186,7 +188,7 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy }:
 
           // submit captcha response
           challengeForm.evaluate((e: HTMLFormElement) => e.submit())
-          await page.waitForNavigation({ waitUntil: 'domcontentloaded' })
+          response = await page.waitForNavigation({ waitUntil: 'domcontentloaded' })
         }
       } else {
         message = 'Captcha detected but \'CAPTCHA_SOLVER\' not set in ENV.'
@@ -194,16 +196,26 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy }:
     }
   }
 
-  const payload = {
+  const payload: ChallenegeResolutionT = {
     message,
     result: {
       url: page.url(),
       status: response.status(),
       headers: response.headers(),
-      response: await page.content(),
+      response: null,
       cookies: await page.cookies(),
       userAgent: await page.evaluate(() => navigator.userAgent)
     }
+  }
+
+  if (download) {
+    // for some reason we get an error unless we reload the page
+    // has something to do with a stale buffer and this is the quickest
+    // fix since I am short on time
+    response = await page.goto(url, { waitUntil: 'domcontentloaded' })
+    payload.result.response = (await response.buffer()).toString('base64')
+  } else {
+    payload.result.response = await page.content()
   }
 
   // make sure the page is closed becaue if it isn't and error will be thrown

@@ -118,4 +118,5 @@ dist
 # VS Code
 .idea/
 
-
+# Project Development
+testing/
