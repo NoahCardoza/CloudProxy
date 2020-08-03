@@ -48,6 +48,7 @@ interface ChallenegeResolutionResultT {
 }
 
 interface ChallenegeResolutionT {
+  status?: string
   message: string
   result: ChallenegeResolutionResultT
 }
@@ -82,6 +83,7 @@ const TOKEN_INPUT_NAMES = ['g-recaptcha-response', 'h-captcha-response']
 async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, download }: BaseRequestAPICall, page: Page): Promise<ChallenegeResolutionT | void> {
 
   maxTimeout = maxTimeout || 60000
+  let status = 'ok'
   let message = ''
 
   if (proxy) {
@@ -191,12 +193,14 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
           response = await page.waitForNavigation({ waitUntil: 'domcontentloaded' })
         }
       } else {
-        message = 'Captcha detected but \'CAPTCHA_SOLVER\' not set in ENV.'
+        status = 'warning'
+        message = 'Captcha detected but no automatic solver is configured.'
       }
     }
   }
 
   const payload: ChallenegeResolutionT = {
+    status,
     message,
     result: {
       url: page.url(),
@@ -289,14 +293,16 @@ export const routes: Routes = {
 
     params = mergeSessionWithParams(session, params)
 
-    console.log(params)
-
     const page = await setupPage(ctx, params, session.browser)
     const data = await resolveChallenge(ctx, params, page)
 
     if (data) {
+      const { status } = data
+      delete data.status
+      console.log(status)
       ctx.successResponse(data.message, {
         ...(oneTimeSession ? {} : { session: sessionId }),
+        ...(status ? { status } : {}),
         solution: data.result
       })
     }

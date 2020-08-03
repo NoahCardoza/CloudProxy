@@ -29,13 +29,13 @@ function successResponse(successMsg: string, extendedProperties: object, res: Se
   log.info(`Successful response in ${(endTimestamp - startTimestamp) / 1000} s`)
   if (successMsg) { log.info(successMsg) }
 
-  const response = Object.assign(extendedProperties || {}, {
+  const response = Object.assign({
     status: 'ok',
     message: successMsg || '',
     startTimestamp,
     endTimestamp,
     version
-  })
+  }, extendedProperties || {})
   res.writeHead(200, {
     'Content-Type': 'application/json'
   })
