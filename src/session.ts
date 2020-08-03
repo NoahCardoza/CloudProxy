@@ -29,7 +29,7 @@ interface SessionCreateOptions {
   cookies?: SetCookie[]
   headers?: Headers,
   maxTimeout?: number
-  proxy? : any
+  proxy?: any
 }
 
 const sessionCache: SessionsCache = {}
@@ -56,11 +56,11 @@ function prepareBrowserProfile(id: string): string {
 export default {
   create: async (id: string, { cookies, oneTimeSession, userAgent, headers, maxTimeout, proxy }: SessionCreateOptions): Promise<SessionsCacheItem> => {
     let args = ["--no-sandbox"];
-    if(proxy && proxy.url){
-        args.push(`--proxy-server=${proxy.url}`);
+    if (proxy && proxy.url) {
+      args.push(`--proxy-server=${proxy.url}`);
     }
 
-      const puppeteerOptions: LaunchOptions = {
+    const puppeteerOptions: LaunchOptions = {
       product: 'chrome',
       headless: true
     }
