@@ -5,6 +5,10 @@ Proxy server to bypass Cloudflare protection
 :warning: This project is in beta state. Some things may not work and the API can change at any time.
 See the known issues section.
 
+## Discord
+
+If you need help feel free to swing by my [Discord](https://discord.gg/AAQrkhR)!
+
 ## How it works
 
 CloudProxy starts a proxy server and it waits for user requests in an idle state using few resources.
