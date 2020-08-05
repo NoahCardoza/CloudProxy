@@ -160,10 +160,15 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
 
           log.info('Waiting to recive captcha token to bypass challenge...')
           const token = await captchaSolver({
-            hostname: (new URL(url)).hostname,
+            url,
             sitekey,
             type: captchaType
           })
+
+          if (!token) {
+            await page.close()
+            return ctx.errorResponse('Token solver failed to return a token.')
+          }
 
           for (const name of TOKEN_INPUT_NAMES) {
             const input = await page.$(`textarea[name="${name}"]`)

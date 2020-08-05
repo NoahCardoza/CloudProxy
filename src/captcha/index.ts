@@ -4,7 +4,7 @@ export enum CaptchaType {
 }
 
 export interface SolverOptions {
-  hostname: string
+  url: string
   sitekey: string
   type: CaptchaType
 }

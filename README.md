@@ -18,7 +18,6 @@ to create a headless browser (Chrome). It opens the URL with user parameters and
 Cloudflare challenge is solved (or timeout). The HTML code and the cookies are sent back to the
 user and those cookies can be used to bypass Cloudflare using other HTTP clients.
 
-
 **NOTE**: Web browsers consume a lot of memory. If you are running CloudProxy on a machine with few RAM,
 do not make many requests at once. With each request a new browser is launched unless you use a session ID which is strongly recommended. However, if you use sessions, you should make sure to close them as soon as you are done using them.
 
@@ -192,9 +191,9 @@ not very helpful to you is it?
 CloudProxy can be customized to solve the captcha's automatically by setting the environment variable
 `CAPTCHA_SOLVER` to the file name of one of the adapters inside the [/captcha](src/captcha) directory.
 
-### Harvester
+### [CaptchaHarvester](https://github.com/NoahCardoza/CaptchaHarvester)
 
-This method makes use of the [CaptchaHarvester](https://github.com/NoahCardoza/CaptchaHarvester) project. Which allows users to collect thier own tokens from ReCaptcha V2/V3 and hCaptcha for free.
+This method makes use of the [CaptchaHarvester](https://github.com/NoahCardoza/CaptchaHarvester) project which allows users to collect thier own tokens from ReCaptcha V2/V3 and hCaptcha for free.
 
 To use this method you must set these ENV variables:
 
@@ -207,6 +206,17 @@ HARVESTER_ENDPOINT=https://127.0.0.1:5000/token
 of the captcha harvester's server, but that could change if
 you customize the command line flags. Simply put, `HARVESTER_ENDPOINT`
 should be set to the URI of the route that returns a token in plain text when called.
+
+### [hcaptcha-solver](https://github.com/JimmyLaurent/hcaptcha-solver)
+
+This method makes use of the [hcaptcha-solver](https://github.com/JimmyLaurent/hcaptcha-solver) project which attempts to solve hcaptcha by randomly selecting images.
+
+To use this solver you must first install it and then set it as the `CAPTCHA_SOLVER`.
+
+```bash
+npm i hcaptcha-solver
+CAPTCHA_SOLVER=hcaptcha-solver
+```
 
 ### Other Options
 
