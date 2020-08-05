@@ -341,9 +341,6 @@ export const routes: Routes = {
     }
 
     if (oneTimeSession) { sessions.destroy(sessionId) }
-  },
-  'request.post': (ctx) => {
-    ctx.errorResponse('Not implemented yet.')
   }
 }
 

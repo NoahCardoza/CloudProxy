@@ -98,6 +98,9 @@ Parameter | Notes
 |--|--|
 url | Mandatory
 session | Optional. Will send the request from and existing browser instance. If one is not sent it will create a temporary instance that will be destroyed immediately after the request is completed.
+headers | Optional. To specify user headers.
+method | Optional, default to "GET".
+postData | Optional, must be a string. If you want to POST a form, don't forget to set the `Content-Type` header to `application/x-www-form-urlencoded` or the server might not understand your request.
 maxTimeout | Optional. Max timeout to solve the challenge
 cookies | Optional. Will be used by the headless browser. Follow [this](https://github.com/puppeteer/puppeteer/blob/v3.3.0/docs/api.md#pagesetcookiecookies) format
 
@@ -238,8 +241,6 @@ TODO:
 
 * Fix remaining issues in the code (see TODOs in code)
 * Make the maxTimeout more accurate (count the time to open the first page / maybe count the captcha solve time?)
-* Add support for more HTTP methods (POST, PUT, DELETE ...)
-* Add support for user HTTP headers
 * Hide sensitive information in logs
 * Reduce Docker image size
 * Docker image for ARM architecture
