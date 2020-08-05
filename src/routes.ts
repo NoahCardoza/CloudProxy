@@ -2,7 +2,7 @@ import { v1 as UUIDv1 } from 'uuid'
 import sessions, { SessionsCacheItem } from './session'
 import { RequestContext } from './types'
 import log from './log'
-import { Browser, SetCookie, Request, Page, Headers } from 'puppeteer'
+import { Browser, SetCookie, Request, Page, Headers, HttpMethod, Overrides } from 'puppeteer'
 import getCaptchaSolver, { CaptchaType } from './captcha'
 import { Context } from 'vm'
 
@@ -24,6 +24,8 @@ interface SessionsCreateAPICall extends BaseSessionsAPICall {
 
 interface BaseRequestAPICall extends BaseAPICall {
   url: string
+  method?: HttpMethod
+  postData?: string
   session?: string
   userAgent?: string
   maxTimeout?: number
@@ -38,7 +40,7 @@ interface Routes {
   [key: string]: (ctx: RequestContext, params: BaseAPICall) => void | Promise<void>
 }
 
-interface ChallenegeResolutionResultT {
+interface ChallengeResolutionResultT {
   url: string
   status: number,
   headers?: Headers,
@@ -47,40 +49,23 @@ interface ChallenegeResolutionResultT {
   userAgent: string
 }
 
-interface ChallenegeResolutionT {
+interface ChallengeResolutionT {
   status?: string
   message: string
-  result: ChallenegeResolutionResultT
+  result: ChallengeResolutionResultT
 }
 
-
-
-const addHeaders = (headers: Headers) => {
-  /*
-    added `once` flag since using removeListener causes
-    page next page load to hang for some reason
-  */
-
-  let once = false
-
-  const callback = (request: Request) => {
-    if (once || !request.isNavigationRequest()) {
-      request.continue()
-      return
-    }
-
-    once = true
-    request.continue({
-      headers: Object.assign(request.headers(), headers)
-    })
-  }
-  return callback
+interface OverrideResolvers {
+  method?: (request: Request) => HttpMethod,
+  postData?: (request: Request) => string,
+  headers?: (request: Request) => Headers
 }
+
 
 const CHALLENGE_SELECTORS = ['.ray_id', '.attack-box']
 const TOKEN_INPUT_NAMES = ['g-recaptcha-response', 'h-captcha-response']
 
-async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, download }: BaseRequestAPICall, page: Page): Promise<ChallenegeResolutionT | void> {
+async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, download }: BaseRequestAPICall, page: Page): Promise<ChallengeResolutionT | void> {
 
   maxTimeout = maxTimeout || 60000
   let status = 'ok'
@@ -107,8 +92,8 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
     if (response.status() > 400) {
       // detect cloudflare wait 5s
       for (const selector of CHALLENGE_SELECTORS) {
-        const cfChallenegeElem = await page.$(selector)
-        if (cfChallenegeElem) {
+        const cfChallengeElem = await page.$(selector)
+        if (cfChallengeElem) {
           log.html(await page.content())
           log.debug('Waiting for Cloudflare challenge...')
 
@@ -120,9 +105,9 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
               await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 })
             } catch (error) { }
 
-            const cfChallenegeElem = await page.$(selector)
-            if (!cfChallenegeElem) { break }
-            log.debug('Found challenege element again...')
+            const cfChallengeElem = await page.$(selector)
+            if (!cfChallengeElem) { break }
+            log.debug('Found challenge element again...')
 
             response = await page.reload({ waitUntil: 'domcontentloaded' })
             log.debug('Reloaded page...')
@@ -199,7 +184,7 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
     }
   }
 
-  const payload: ChallenegeResolutionT = {
+  const payload: ChallengeResolutionT = {
     status,
     message,
     result: {
@@ -243,7 +228,19 @@ async function setupPage(ctx: Context, params: BaseRequestAPICall, browser: Brow
   const page = await browser.newPage()
 
   // merge session defaults with params
-  const { userAgent, headers, cookies } = params
+  const { method, postData, userAgent, headers, cookies } = params
+
+  let overrideResolvers: OverrideResolvers = {}
+
+  if (method !== 'GET') {
+    log.debug(`Setting method to ${method}`)
+    overrideResolvers.method = (request: Request) => method
+  }
+
+  if (postData) {
+    log.debug(`Setting body data to ${postData}`)
+    overrideResolvers.postData = (request: Request) => postData
+  }
 
   if (userAgent) {
     log.debug(`Using custom UA: ${userAgent}`)
@@ -252,14 +249,50 @@ async function setupPage(ctx: Context, params: BaseRequestAPICall, browser: Brow
 
   if (headers) {
     log.debug(`Adding custom headers: ${JSON.stringify(headers, null, 2)}`,)
-    await page.setRequestInterception(true)
-    page.on('request', addHeaders(headers))
+    overrideResolvers.headers = (request: Request) => Object.assign(request.headers(), headers)
   }
 
   if (cookies) {
     log.debug(`Setting custom cookies: ${JSON.stringify(cookies, null, 2)}`,)
     await page.setCookie(...cookies)
   }
+
+  log.debug(overrideResolvers)
+
+  const callback = (request: Request) => {
+    let once = false
+
+    if (once || !request.isNavigationRequest()) {
+      request.continue()
+      return
+    }
+
+    once = true
+
+    const overrides: Overrides = {}
+
+    // This can probably be enhanced by looping through overrideResolvers
+    // but my knowledge of TypeScript is too limited
+
+    if (overrideResolvers.method) {
+      overrides.method = overrideResolvers.method(request)
+    }
+
+    if (overrideResolvers.postData) {
+      overrides.postData = overrideResolvers.postData(request)
+    }
+
+    if (overrideResolvers.headers) {
+      overrides.headers = overrideResolvers.headers(request)
+    }
+
+    log.debug(overrides)
+
+    request.continue(overrides)
+  }
+
+  await page.setRequestInterception(true)
+  page.on('request', callback)
 
   return page
 }
@@ -308,9 +341,6 @@ export const routes: Routes = {
     }
 
     if (oneTimeSession) { sessions.destroy(sessionId) }
-  },
-  'request.post': (ctx) => {
-    ctx.errorResponse('Not implemented yet.')
   }
 }
 
