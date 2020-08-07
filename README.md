@@ -30,7 +30,7 @@ Run `PUPPETEER_PRODUCT=chrome npm install` to install CloudProxy dependencies.
 
 ## Usage
 
-Run `node index.js` to start CloudProxy.
+Run `npm start` to start CloudProxy.
 
 Example request:
 
@@ -185,6 +185,7 @@ LOG_HTML | false | Used for debugging. If `true` all html that passes through th
 PORT | 8191 | Change this if you already have a process running on port `8191`.
 HOST | 0.0.0.0 | This shouldn't need to be messed with but if you insist, it's here!
 CAPTCHA_SOLVER | None | This is used to select which captcha solving method it used when a captcha is encounted.
+HEADLESS | true | This is used to debug the browser by not running it in headless mode.
 
 ## Captcha Solvers
 
