@@ -4,7 +4,6 @@ import { RequestContext } from './types'
 import log from './log'
 import { Browser, SetCookie, Request, Page, Headers, HttpMethod, Overrides } from 'puppeteer'
 import getCaptchaSolver, { CaptchaType } from './captcha'
-import { Context } from 'vm'
 
 export interface BaseAPICall {
   cmd: string
@@ -61,6 +60,10 @@ interface OverrideResolvers {
   headers?: (request: Request) => Headers
 }
 
+type OverridesProps =
+  'method' |
+  'postData' |
+  'headers'
 
 const CHALLENGE_SELECTORS = ['.ray_id', '.attack-box']
 const TOKEN_INPUT_NAMES = ['g-recaptcha-response', 'h-captcha-response']
@@ -224,7 +227,7 @@ function mergeSessionWithParams({ defaults }: SessionsCacheItem, params: BaseReq
   return copy
 }
 
-async function setupPage(ctx: Context, params: BaseRequestAPICall, browser: Browser): Promise<Page> {
+async function setupPage(ctx: RequestContext, params: BaseRequestAPICall, browser: Browser): Promise<Page> {
   const page = await browser.newPage()
 
   // merge session defaults with params
@@ -234,12 +237,12 @@ async function setupPage(ctx: Context, params: BaseRequestAPICall, browser: Brow
 
   if (method !== 'GET') {
     log.debug(`Setting method to ${method}`)
-    overrideResolvers.method = (request: Request) => method
+    overrideResolvers.method = request => method
   }
 
   if (postData) {
     log.debug(`Setting body data to ${postData}`)
-    overrideResolvers.postData = (request: Request) => postData
+    overrideResolvers.postData = request => postData
   }
 
   if (userAgent) {
@@ -249,7 +252,7 @@ async function setupPage(ctx: Context, params: BaseRequestAPICall, browser: Brow
 
   if (headers) {
     log.debug(`Adding custom headers: ${JSON.stringify(headers, null, 2)}`,)
-    overrideResolvers.headers = (request: Request) => Object.assign(request.headers(), headers)
+    overrideResolvers.headers = request => Object.assign(request.headers(), headers)
   }
 
   if (cookies) {
@@ -257,44 +260,68 @@ async function setupPage(ctx: Context, params: BaseRequestAPICall, browser: Brow
     await page.setCookie(...cookies)
   }
 
-  log.debug(overrideResolvers)
+  // if any keys have been set on the object
+  if (Object.keys(overrideResolvers).length > 0) {
+    log.debug(overrideResolvers)
+    let callbackRunOnce = false
+    const callback = (request: Request) => {
 
-  const callback = (request: Request) => {
-    let once = false
+      if (callbackRunOnce || !request.isNavigationRequest()) {
+        request.continue()
+        return
+      }
 
-    if (once || !request.isNavigationRequest()) {
-      request.continue()
-      return
+      callbackRunOnce = true
+      const overrides: Overrides = {}
+
+      Object.keys(overrideResolvers).forEach((key: OverridesProps) => {
+        // @ts-ignore
+        overrides[key] = overrideResolvers[key](request)
+      });
+
+      log.debug(overrides)
+
+      request.continue(overrides)
     }
 
-    once = true
-
-    const overrides: Overrides = {}
-
-    // This can probably be enhanced by looping through overrideResolvers
-    // but my knowledge of TypeScript is too limited
-
-    if (overrideResolvers.method) {
-      overrides.method = overrideResolvers.method(request)
-    }
-
-    if (overrideResolvers.postData) {
-      overrides.postData = overrideResolvers.postData(request)
-    }
-
-    if (overrideResolvers.headers) {
-      overrides.headers = overrideResolvers.headers(request)
-    }
-
-    log.debug(overrides)
-
-    request.continue(overrides)
+    await page.setRequestInterception(true)
+    page.on('request', callback)
   }
 
-  await page.setRequestInterception(true)
-  page.on('request', callback)
-
   return page
+}
+
+const browserRequest = async (ctx: RequestContext, params: BaseRequestAPICall) => {
+  const oneTimeSession = params.session === undefined
+  const sessionId = params.session || UUIDv1()
+  const session = oneTimeSession
+    ? await sessions.create(sessionId, {
+      userAgent: params.userAgent,
+      oneTimeSession
+    })
+    : sessions.get(sessionId)
+
+  if (session === false) {
+    return ctx.errorResponse('This session does not exist. Use \'list_sessions\' to see all the existing sessions.')
+  }
+
+  params = mergeSessionWithParams(session, params)
+
+  const page = await setupPage(ctx, params, session.browser)
+  const data = await resolveChallenge(ctx, params, page)
+
+  if (data) {
+    const { status } = data
+    delete data.status
+    console.log(status)
+    ctx.successResponse(data.message, {
+      ...(oneTimeSession ? {} : { session: sessionId }),
+      ...(status ? { status } : {}),
+      solution: data.result
+    })
+  }
+
+  if (oneTimeSession) { sessions.destroy(sessionId) }
 }
 
 export const routes: Routes = {
@@ -311,36 +338,20 @@ export const routes: Routes = {
     ctx.errorResponse('This session does not exist.')
   },
   'request.get': async (ctx, params: BaseRequestAPICall) => {
-    const oneTimeSession = params.session === undefined
-    const sessionId = params.session || UUIDv1()
-    const session = oneTimeSession
-      ? await sessions.create(sessionId, {
-        userAgent: params.userAgent,
-        oneTimeSession
-      })
-      : sessions.get(sessionId)
+    params.method = 'GET'
+    if (params.postData) {
+      return ctx.errorResponse('Cannot use "postBody" when sending a GET request.')
+    }
+    await browserRequest(ctx, params)
+  },
+  'request.post': async (ctx, params: BaseRequestAPICall) => {
+    params.method = 'POST'
 
-    if (session === false) {
-      return ctx.errorResponse('This session does not exist. Use \'list_sessions\' to see all the existing sessions.')
+    if (!params.postData) {
+      return ctx.errorResponse('Must send param "postBody" when sending a POST request.')
     }
 
-    params = mergeSessionWithParams(session, params)
-
-    const page = await setupPage(ctx, params, session.browser)
-    const data = await resolveChallenge(ctx, params, page)
-
-    if (data) {
-      const { status } = data
-      delete data.status
-      console.log(status)
-      ctx.successResponse(data.message, {
-        ...(oneTimeSession ? {} : { session: sessionId }),
-        ...(status ? { status } : {}),
-        solution: data.result
-      })
-    }
-
-    if (oneTimeSession) { sessions.destroy(sessionId) }
+    await browserRequest(ctx, params)
   }
 }
 
