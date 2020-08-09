@@ -313,7 +313,6 @@ const browserRequest = async (ctx: RequestContext, params: BaseRequestAPICall) =
   if (data) {
     const { status } = data
     delete data.status
-    console.log(status)
     ctx.successResponse(data.message, {
       ...(oneTimeSession ? {} : { session: sessionId }),
       ...(status ? { status } : {}),
