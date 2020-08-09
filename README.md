@@ -29,7 +29,7 @@ Run `PUPPETEER_PRODUCT=chrome npm install` to install CloudProxy dependencies.
 
 ## Usage
 
-Run `node index.js` to start CloudProxy.
+Run `npm start` to start CloudProxy.
 
 Example request:
 
@@ -97,6 +97,7 @@ Parameter | Notes
 |--|--|
 url | Mandatory
 session | Optional. Will send the request from and existing browser instance. If one is not sent it will create a temporary instance that will be destroyed immediately after the request is completed.
+headers | Optional. To specify user headers.
 maxTimeout | Optional. Max timeout to solve the challenge
 cookies | Optional. Will be used by the headless browser. Follow [this](https://github.com/puppeteer/puppeteer/blob/v3.3.0/docs/api.md#pagesetcookiecookies) format
 
@@ -160,6 +161,14 @@ Example response from running the `curl` above:
 }
 ```
 
+### + `request.post`
+
+This is the same as `request.get` but it takes one more param:
+
+Parameter | Notes
+|--|--|
+postData | Must be a string. If you want to POST a form, don't forget to set the `Content-Type` header to `application/x-www-form-urlencoded` or the server might not understand your request.
+
 ## Downloading Images and PDFs (small files)
 
 If you need to access an image/pdf or small file, you should pass the `download` parameter to
@@ -181,6 +190,7 @@ LOG_HTML | false | Used for debugging. If `true` all html that passes through th
 PORT | 8191 | Change this if you already have a process running on port `8191`.
 HOST | 0.0.0.0 | This shouldn't need to be messed with but if you insist, it's here!
 CAPTCHA_SOLVER | None | This is used to select which captcha solving method it used when a captcha is encounted.
+HEADLESS | true | This is used to debug the browser by not running it in headless mode.
 
 ## Captcha Solvers
 
@@ -248,8 +258,6 @@ TODO:
 
 * Fix remaining issues in the code (see TODOs in code)
 * Make the maxTimeout more accurate (count the time to open the first page / maybe count the captcha solve time?)
-* Add support for more HTTP methods (POST, PUT, DELETE ...)
-* Add support for user HTTP headers
 * Hide sensitive information in logs
 * Reduce Docker image size
 * Docker image for ARM architecture
