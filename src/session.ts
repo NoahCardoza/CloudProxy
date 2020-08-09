@@ -55,7 +55,7 @@ function prepareBrowserProfile(id: string): string {
 
 export default {
   create: async (id: string, { cookies, oneTimeSession, userAgent, headers, maxTimeout, proxy }: SessionCreateOptions): Promise<SessionsCacheItem> => {
-    let args = ["--no-sandbox"];
+    let args = ['--no-sandbox', '--disable-setuid-sandbox'];
     if (proxy && proxy.url) {
       args.push(`--proxy-server=${proxy.url}`);
     }
