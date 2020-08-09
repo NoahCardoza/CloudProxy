@@ -125,7 +125,7 @@ export default {
           await sleep(5000)
           deleteFolderRecursive(userDataDirPath)
         } catch (e) {
-          console.log(e)
+          console.error(e)
           throw Error(`Error deleting browser session folder. ${e.message}`)
         }
       }
