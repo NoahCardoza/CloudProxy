@@ -99,8 +99,6 @@ Parameter | Notes
 url | Mandatory
 session | Optional. Will send the request from and existing browser instance. If one is not sent it will create a temporary instance that will be destroyed immediately after the request is completed.
 headers | Optional. To specify user headers.
-method | Optional, default to "GET".
-postData | Optional, must be a string. If you want to POST a form, don't forget to set the `Content-Type` header to `application/x-www-form-urlencoded` or the server might not understand your request.
 maxTimeout | Optional. Max timeout to solve the challenge
 cookies | Optional. Will be used by the headless browser. Follow [this](https://github.com/puppeteer/puppeteer/blob/v3.3.0/docs/api.md#pagesetcookiecookies) format
 
@@ -163,6 +161,14 @@ Example response from running the `curl` above:
     "version": "1.0.0"
 }
 ```
+
+### + `request.post`
+
+This is the same as `request.get` but it takes one more param:
+
+Parameter | Notes
+|--|--|
+postData | Must be a string. If you want to POST a form, don't forget to set the `Content-Type` header to `application/x-www-form-urlencoded` or the server might not understand your request.
 
 ## Downloading Images and PDFs (small files)
 
