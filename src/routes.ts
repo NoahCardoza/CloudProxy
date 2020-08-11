@@ -172,11 +172,13 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
             window.addEventListener('submit', (e) => { event.stopPropagation() }, true)
           })
 
-          // this element is added with js and we want to wait for all the js to load before submitting
+          // it seems some sites obfuscate their challenge forms
+          // TODO: look into how they do it and come up with a more solid solution
           try {
+            // this element is added with js and we want to wait for all the js to load before submitting
             await page.waitForSelector('#challenge-form [type=submit]', { timeout: 5000 })
           } catch (err) {
-            if (err instanceof TimeoutError) { 
+            if (err instanceof TimeoutError) {
               log.debug(`No '#challenge-form [type=submit]' element detected.`)
             }
           }
