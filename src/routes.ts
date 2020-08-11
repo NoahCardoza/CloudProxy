@@ -3,6 +3,7 @@ import sessions, { SessionsCacheItem } from './session'
 import { RequestContext } from './types'
 import log from './log'
 import { Browser, SetCookie, Request, Page, Headers, HttpMethod, Overrides } from 'puppeteer'
+import { TimeoutError } from 'puppeteer/Errors'
 import getCaptchaSolver, { CaptchaType } from './captcha'
 
 export interface BaseAPICall {
@@ -142,9 +143,12 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
           const captchaType: CaptchaType = (CaptchaType as any)[cfCaptchaType]
           if (!captchaType) { return ctx.errorResponse('Unknown captcha type!') }
 
-          const sitekeyElem = await page.$('*[data-sitekey]')
-          if (!sitekeyElem) { return ctx.errorResponse('Could not find sitekey!') }
-          const sitekey = await sitekeyElem.evaluate((e) => e.getAttribute('data-sitekey'))
+          let sitekey = null
+          if (captchaType != 'hCaptcha' && process.env.CAPTCHA_SOLVER != 'hcaptcha-solver') {
+            const sitekeyElem = await page.$('*[data-sitekey]')
+            if (!sitekeyElem) { return ctx.errorResponse('Could not find sitekey!') }
+            sitekey = await sitekeyElem.evaluate((e) => e.getAttribute('data-sitekey'))
+          }
 
           log.info('Waiting to recive captcha token to bypass challenge...')
           const token = await captchaSolver({
@@ -168,8 +172,16 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
             window.addEventListener('submit', (e) => { event.stopPropagation() }, true)
           })
 
-          // this element is added with js and we want to wait for all the js to load before submitting
-          await page.waitForSelector('#challenge-form [type=submit]')
+          // it seems some sites obfuscate their challenge forms
+          // TODO: look into how they do it and come up with a more solid solution
+          try {
+            // this element is added with js and we want to wait for all the js to load before submitting
+            await page.waitForSelector('#challenge-form [type=submit]', { timeout: 5000 })
+          } catch (err) {
+            if (err instanceof TimeoutError) {
+              log.debug(`No '#challenge-form [type=submit]' element detected.`)
+            }
+          }
 
           // calculates the time it took to solve the captcha
           const captchaSolveTotalTime = Date.now() - captchaStartTimestamp
