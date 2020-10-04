@@ -18,8 +18,8 @@
     "console-log-level": "^1.4.1",
     "got": "^11.5.1",
     "puppeteer": "^3.3.0",
-    "puppeteer-extra": "^3.1.12",
-    "puppeteer-extra-plugin-stealth": "^2.4.13",
+    "puppeteer-extra": "^3.1.15",
+    "puppeteer-extra-plugin-stealth": "^2.6.2",
     "typescript": "^3.9.7",
     "uuid": "^8.2.0"
   },
