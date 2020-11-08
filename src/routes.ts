@@ -66,7 +66,7 @@ type OverridesProps =
   'postData' |
   'headers'
 
-const CHALLENGE_SELECTORS = ['.ray_id', '.attack-box']
+const CHALLENGE_SELECTORS = ['#trk_jschal_js', '.ray_id', '.attack-box']
 const TOKEN_INPUT_NAMES = ['g-recaptcha-response', 'h-captcha-response']
 
 async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, download }: BaseRequestAPICall, page: Page): Promise<ChallengeResolutionT | void> {
