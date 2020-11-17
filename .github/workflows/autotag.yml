@@ -2,7 +2,8 @@ name: autotag
 
 on:
   push:
-    branch: 'release'
+    branches:
+      - '**'
 
 jobs:
   build:
