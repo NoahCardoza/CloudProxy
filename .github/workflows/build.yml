@@ -2,8 +2,6 @@ name: build
 
 on:
   push:
-    branches:
-      - 'deploy'
     tags:
       - 'v*.*.*'
 
@@ -14,11 +12,6 @@ jobs:
       -
         name: Checkout
         uses: actions/checkout@v2
-      -
-        name: Auto Tag
-        uses: Klemensas/action-autotag@stable
-        with:
-          GITHUB_TOKEN: "${{ secrets.GH_PAT }}"
       -
         name: Downcase repo
         run: echo REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
