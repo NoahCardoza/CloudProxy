@@ -13,6 +13,7 @@ USER node
 RUN mkdir -p /home/node/cloudproxy
 WORKDIR /home/node/cloudproxy
 COPY --chown=node:node package.json ./
+COPY --chown=node:node tsconfig.json ./
 COPY --chown=node:node src ./src/
 
 # Install package. Skip installing Chrome, we will use the installed package.
