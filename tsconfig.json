@@ -8,15 +8,13 @@
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "lib": [
-      "es2015",
-      "dom"
-    ]
+      "es2015", "dom"
+    ],
+    "module": "commonjs",
+    "outDir": "dist"
   },
   "include": [
-    "src",
-    "node_modules/@types/puppeteer/index.d.ts"
+    "src", "node_modules/@types/puppeteer/index.d.ts"
   ],
-  "exclude": [
-    "node_modules",
-  ]
+  "exclude": ["node_modules"]
 }
