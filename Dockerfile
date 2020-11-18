@@ -19,8 +19,9 @@ COPY --chown=node:node src ./src/
 ENV PUPPETEER_PRODUCT=chrome \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-RUN npm install --only=production && \
-    npm install hcaptcha-solver --only=production
+RUN npm install
+RUN npm run build
+RUN npm prune --production
 
 EXPOSE 8191
 CMD ["npm", "start"]
