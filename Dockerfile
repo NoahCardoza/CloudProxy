@@ -22,6 +22,7 @@ ENV PUPPETEER_PRODUCT=chrome \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 RUN npm install
 RUN npm run build
+RUN rm -rf src tsconfig.json
 RUN npm prune --production
 
 EXPOSE 8191
