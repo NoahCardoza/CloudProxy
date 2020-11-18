@@ -1,4 +1,4 @@
-FROM --platform=${TARGETPLATFORM:-linux/amd64} node:15.2.1-alpine3.12
+FROM --platform=${TARGETPLATFORM:-linux/amd64} node:15.2.1-alpine3.11
 
 # Print build information
 ARG TARGETPLATFORM
@@ -12,8 +12,7 @@ RUN apk add --no-cache chromium
 USER node
 RUN mkdir -p /home/node/cloudproxy
 WORKDIR /home/node/cloudproxy
-COPY --chown=node:node package.json ./
-COPY --chown=node:node tsconfig.json ./
+COPY --chown=node:node package.json package-lock.json tsconfig.json ./
 COPY --chown=node:node src ./src/
 
 # Install package. Skip installing Chrome, we will use the installed package.
@@ -24,7 +23,6 @@ RUN npm install && \
     npm run build && \
     rm -rf src tsconfig.json && \
     npm prune --production
-
 
 EXPOSE 8191
 CMD ["npm", "start"]
