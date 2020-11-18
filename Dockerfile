@@ -5,8 +5,9 @@ ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 RUN printf "I am running on ${BUILDPLATFORM:-linux/amd64}, building for ${TARGETPLATFORM:-linux/amd64}\n$(uname -a)\n"
 
-# Install packages
-RUN apk add --no-cache chromium
+# Install Chromium and remove all locales but en-US
+RUN apk add --no-cache chromium && \
+    find /usr/lib/chromium/locales -type f ! -name 'en-US.*' -delete
 
 # Copy CloudProxy code
 USER node
