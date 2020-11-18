@@ -2,11 +2,10 @@
   "name": "cloud-proxy",
   "version": "1.0.0",
   "description": "Proxy server to bypass Cloudflare protection.",
-  "main": "index.js",
   "scripts": {
-    "test": "which ts-node",
-    "dev": "nodemon -e ts --exec ts-node src/index.ts",
-    "start": "ts-node src/index.ts"
+    "start": "node ./dist/index.ts",
+    "build": "tsc",
+    "dev": "nodemon -e ts --exec ts-node src/index.ts"
   },
   "author": "Noah Cardoza (Discord: MacHacker#7322)",
   "license": "MIT",
