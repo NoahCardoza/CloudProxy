@@ -3,7 +3,7 @@ name: autotag
 on:
   push:
     branches:
-      - '**'
+      - "master"
 
 jobs:
   build:
