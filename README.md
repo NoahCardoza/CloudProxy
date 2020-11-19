@@ -29,7 +29,7 @@ Run `PUPPETEER_PRODUCT=chrome npm install` to install CloudProxy dependencies.
 
 ## Usage
 
-Run `npm start` to start CloudProxy.
+First run `npm run build`. Once the TypeScript is compiled, you can use `npm start` to start CloudProxy.
 
 Example request:
 
