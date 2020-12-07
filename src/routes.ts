@@ -2,7 +2,7 @@ import { v1 as UUIDv1 } from 'uuid'
 import sessions, { SessionsCacheItem } from './session'
 import { RequestContext } from './types'
 import log from './log'
-import { Browser, SetCookie, Request, Page, Headers, HttpMethod, Overrides } from 'puppeteer'
+import { Browser, SetCookie, Request, Page, Headers, HttpMethod, Overrides, Cookie } from 'puppeteer'
 import { TimeoutError } from 'puppeteer/Errors'
 import getCaptchaSolver, { CaptchaType } from './captcha'
 
@@ -33,6 +33,7 @@ interface BaseRequestAPICall extends BaseAPICall {
   headers?: Headers
   proxy?: any, // TODO: use interface not any
   download?: boolean
+  returnOnlyCookies?: boolean
 }
 
 
@@ -69,7 +70,53 @@ type OverridesProps =
 const CHALLENGE_SELECTORS = ['#trk_jschal_js', '.ray_id', '.attack-box']
 const TOKEN_INPUT_NAMES = ['g-recaptcha-response', 'h-captcha-response']
 
-async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, download }: BaseRequestAPICall, page: Page): Promise<ChallengeResolutionT | void> {
+async function interceptResponse(page: Page, callback: (payload: ChallengeResolutionT) => any) {
+  const client = await page.target().createCDPSession();
+  await client.send('Fetch.enable', {
+    patterns: [
+      {
+        urlPattern: '*',
+        resourceType: 'Document',
+        requestStage: 'Response',
+      },
+    ],
+  });
+
+  client.on('Fetch.requestPaused', async (e) => {
+    log.debug('Fetch.requestPaused. Checking if the response has valid cookies')
+    let headers = e.responseHeaders || []
+
+    let cookies = await page.cookies();
+    log.debug(cookies)
+
+    if (cookies.filter((c: Cookie) => c.name === 'cf_clearance').length > 0) {
+      log.debug('Aborting request and return cookies. valid cookies found')
+      await client.send('Fetch.failRequest', {requestId: e.requestId, errorReason: 'Aborted'})
+
+      let status = 'ok'
+      let message = ''
+      const payload: ChallengeResolutionT = {
+        status,
+        message,
+        result: {
+          url: page.url(),
+          status: e.status,
+          headers: headers.reduce((a: any, x: { name: any; value: any }) => ({ ...a, [x.name]: x.value }), {}),
+          response: null,
+          cookies: cookies,
+          userAgent: ''
+        }
+      }
+
+      callback(payload);
+    } else {
+      log.debug('Continuing request. no valid cookies found')
+      await client.send('Fetch.continueRequest', {requestId: e.requestId})
+    }
+  });
+}
+
+async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, download, returnOnlyCookies }: BaseRequestAPICall, page: Page): Promise<ChallengeResolutionT | void> {
 
   maxTimeout = maxTimeout || 60000
   let status = 'ok'
@@ -81,7 +128,7 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
       await page.authenticate({ username: proxy.username, password: proxy.password });
   }
 
-  log.debug(`Navegating to... ${url}`)
+  log.debug(`Navigating to... ${url}`)
   let response = await page.goto(url, { waitUntil: 'domcontentloaded' })
 
   // look for challenge
@@ -101,13 +148,25 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
           log.html(await page.content())
           log.debug('Waiting for Cloudflare challenge...')
 
+          let interceptingResult: ChallengeResolutionT;
+          if (returnOnlyCookies) { //If we just want to get the cookies, intercept the response before we get the content/body (just cookies and headers)
+            await interceptResponse(page, async function(payload){
+              interceptingResult = payload;
+            });
+          }
+
           // TODO: find out why these pages hang sometimes
           while (Date.now() - ctx.startTimestamp < maxTimeout) {
             await page.waitFor(1000)
             try {
               // catch exception timeout in waitForNavigation
-              await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 })
+              response = await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 })
             } catch (error) { }
+
+            if (returnOnlyCookies && interceptingResult) {
+              await page.close();
+              return interceptingResult;
+            }
 
             try {
               // catch Execution context was destroyed
@@ -154,7 +213,7 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
             sitekey = await sitekeyElem.evaluate((e) => e.getAttribute('data-sitekey'))
           }
 
-          log.info('Waiting to recive captcha token to bypass challenge...')
+          log.info('Waiting to receive captcha token to bypass challenge...')
           const token = await captchaSolver({
             url,
             sitekey,
@@ -193,13 +252,25 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
           // generates a random wait time
           const randomWaitTime = (Math.floor(Math.random() * 20) + 10) * 1000
 
-          // waits, if any, time remaining to apper human but stay as fast as possible
+          // waits, if any, time remaining to appear human but stay as fast as possible
           const timeLeft = randomWaitTime - captchaSolveTotalTime
           if (timeLeft > 0) { await page.waitFor(timeLeft) }
+
+          let interceptingResult: ChallengeResolutionT;
+          if (returnOnlyCookies) { //If we just want to get the cookies, intercept the response before we get the content/body (just cookies and headers)
+            await interceptResponse(page, async function(payload){
+              interceptingResult = payload;
+            });
+          }
 
           // submit captcha response
           challengeForm.evaluate((e: HTMLFormElement) => e.submit())
           response = await page.waitForNavigation({ waitUntil: 'domcontentloaded' })
+
+          if (returnOnlyCookies && interceptingResult) {
+            await page.close();
+            return interceptingResult;
+          }
         }
       } else {
         status = 'warning'
@@ -231,7 +302,7 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
     payload.result.response = await page.content()
   }
 
-  // make sure the page is closed becaue if it isn't and error will be thrown
+  // make sure the page is closed because if it isn't and error will be thrown
   // when a user uses a temporary session, the browser make be quit before
   // the page is properly closed.
   await page.close()
@@ -377,7 +448,15 @@ export const routes: Routes = {
     }
 
     await browserRequest(ctx, params)
-  }
+  },
+  'request.cookies': async (ctx, params: BaseRequestAPICall) => {
+    params.returnOnlyCookies = true
+    params.method = 'GET'
+    if (params.postData) {
+      return ctx.errorResponse('Cannot use "postBody" when sending a GET request.')
+    }
+    await browserRequest(ctx, params)
+  },
 }
 
 export default async function Router(ctx: RequestContext, params: BaseAPICall): Promise<void> {

@@ -11,7 +11,8 @@
       "es2015", "dom"
     ],
     "module": "commonjs",
-    "outDir": "dist"
+    "outDir": "dist",
+    "sourceMap": true
   },
   "include": [
     "src", "node_modules/@types/puppeteer/index.d.ts"
