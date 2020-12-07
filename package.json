@@ -1,6 +1,6 @@
 {
   "name": "cloud-proxy",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Proxy server to bypass Cloudflare protection.",
   "scripts": {
     "start": "node ./dist/index.js",
