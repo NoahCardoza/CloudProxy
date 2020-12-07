@@ -109,9 +109,13 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
               await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 })
             } catch (error) { }
 
-            const cfChallengeElem = await page.$(selector)
-            if (!cfChallengeElem) { break }
-            log.debug('Found challenge element again...')
+            try {
+              // catch Execution context was destroyed
+              const cfChallengeElem = await page.$(selector)
+              if (!cfChallengeElem) { break }
+              log.debug('Found challenge element again...')
+            } catch (error)
+            { }
 
             response = await page.reload({ waitUntil: 'domcontentloaded' })
             log.debug('Reloaded page...')
@@ -324,20 +328,25 @@ const browserRequest = async (ctx: RequestContext, params: BaseRequestAPICall) =
 
   params = mergeSessionWithParams(session, params)
 
-  const page = await setupPage(ctx, params, session.browser)
-  const data = await resolveChallenge(ctx, params, page)
+  try {
+    const page = await setupPage(ctx, params, session.browser)
+    const data = await resolveChallenge(ctx, params, page)
 
-  if (data) {
-    const { status } = data
-    delete data.status
-    ctx.successResponse(data.message, {
-      ...(oneTimeSession ? {} : { session: sessionId }),
-      ...(status ? { status } : {}),
-      solution: data.result
-    })
+    if (data) {
+      const { status } = data
+      delete data.status
+      ctx.successResponse(data.message, {
+        ...(oneTimeSession ? {} : { session: sessionId }),
+        ...(status ? { status } : {}),
+        solution: data.result
+      })
+    }
+  } catch (error) {
+    log.error(error)
+    return ctx.errorResponse("Unable to process browser request")
+  } finally {
+    if (oneTimeSession) { sessions.destroy(sessionId) }
   }
-
-  if (oneTimeSession) { sessions.destroy(sessionId) }
 }
 
 export const routes: Routes = {
