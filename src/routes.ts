@@ -386,10 +386,12 @@ async function setupPage(ctx: RequestContext, params: BaseRequestAPICall, browse
 const browserRequest = async (ctx: RequestContext, params: BaseRequestAPICall) => {
   const oneTimeSession = params.session === undefined
   const sessionId = params.session || UUIDv1()
+  const proxy = params.proxy;
   const session = oneTimeSession
     ? await sessions.create(sessionId, {
       userAgent: params.userAgent,
-      oneTimeSession
+      oneTimeSession,
+      proxy
     })
     : sessions.get(sessionId)
 
