@@ -24,12 +24,12 @@ interface SessionsCache {
 }
 
 interface SessionCreateOptions {
+  proxy?: string
   oneTimeSession?: boolean
   userAgent?: string
   cookies?: SetCookie[]
   headers?: Headers,
   maxTimeout?: number
-  proxy?: any
 }
 
 const sessionCache: SessionsCache = {}
@@ -54,10 +54,11 @@ function prepareBrowserProfile(id: string): string {
 }
 
 export default {
-  create: async (id: string, { cookies, oneTimeSession, userAgent, headers, maxTimeout, proxy }: SessionCreateOptions): Promise<SessionsCacheItem> => {
+  create: async (id: string, { proxy, cookies, oneTimeSession, userAgent, headers, maxTimeout }: SessionCreateOptions): Promise<SessionsCacheItem> => {
     let args = ['--no-sandbox', '--disable-setuid-sandbox'];
-    if (proxy && proxy.url) {
-      args.push(`--proxy-server=${proxy.url}`);
+    if (proxy) {
+      log.debug(proxy)
+      args.push(`--proxy-server=${proxy}`);
     }
 
     const puppeteerOptions: LaunchOptions = {
