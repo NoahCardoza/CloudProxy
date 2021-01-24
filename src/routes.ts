@@ -19,7 +19,7 @@ interface SessionsCreateAPICall extends BaseSessionsAPICall {
   cookies?: SetCookie[],
   headers?: Headers
   maxTimeout?: number
-  proxy?: any
+  proxy?: string
 }
 
 interface BaseRequestAPICall extends BaseAPICall {
@@ -31,7 +31,7 @@ interface BaseRequestAPICall extends BaseAPICall {
   maxTimeout?: number
   cookies?: SetCookie[],
   headers?: Headers
-  proxy?: any, // TODO: use interface not any
+  proxy?: string,
   download?: boolean
   returnOnlyCookies?: boolean
 }
@@ -117,15 +117,12 @@ async function interceptResponse(page: Page, callback: (payload: ChallengeResolu
 }
 
 async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, download, returnOnlyCookies }: BaseRequestAPICall, page: Page): Promise<ChallengeResolutionT | void> {
-
   maxTimeout = maxTimeout || 60000
   let status = 'ok'
   let message = ''
 
   if (proxy) {
     log.debug("Apply proxy");
-    if (proxy.username)
-      await page.authenticate({ username: proxy.username, password: proxy.password });
   }
 
   log.debug(`Navigating to... ${url}`)
@@ -323,7 +320,7 @@ async function setupPage(ctx: RequestContext, params: BaseRequestAPICall, browse
   const page = await browser.newPage()
 
   // merge session defaults with params
-  const { method, postData, userAgent, headers, cookies } = params
+  const { method, postData, userAgent, headers, cookies, proxy } = params
 
   let overrideResolvers: OverrideResolvers = {}
 
@@ -389,6 +386,7 @@ const browserRequest = async (ctx: RequestContext, params: BaseRequestAPICall) =
   const session = oneTimeSession
     ? await sessions.create(sessionId, {
       userAgent: params.userAgent,
+      proxy: params.proxy,
       oneTimeSession
     })
     : sessions.get(sessionId)
