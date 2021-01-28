@@ -20,7 +20,7 @@
     "hcaptcha-solver": "^1.0.2",
     "puppeteer": "^3.3.0",
     "puppeteer-extra": "^3.1.15",
-    "puppeteer-extra-plugin-stealth": "^2.6.5",
+    "puppeteer-extra-plugin-stealth": "^2.6.7",
     "uuid": "^8.2.0"
   },
   "devDependencies": {

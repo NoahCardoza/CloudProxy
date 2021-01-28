@@ -168,7 +168,7 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
             try {
               // catch Execution context was destroyed
               const cfChallengeElem = await page.$(selector)
-              if (!cfChallengeElem) { break }
+              if (!cfChallengeElem || await page.$('input[name="cf_captcha_kind"]')) { break }
               log.debug('Found challenge element again...')
             } catch (error)
             { }
