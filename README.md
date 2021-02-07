@@ -7,7 +7,7 @@ See the known issues section.
 
 ## Discord
 
-If you need help feel free to swing by my [Discord](https://discord.gg/AAQrkhR)!
+If you need help feel free to swing by my [Discord](https://discord.gg/gTq2VmUMsE)!
 
 ## How it works
 
