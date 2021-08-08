@@ -20,9 +20,9 @@ services:
 
   # # Example:
   # harvester:
+  #   image: username/image
   #   build:
   #     context: .
   #     # Assuming this exists & exposes port 5000 as the harvester
   #     dockerfile: harvester.Dockerfile
   #     # it is also possible to pull the image from docker hub
-  #     image: username/image
