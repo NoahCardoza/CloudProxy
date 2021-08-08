@@ -3,9 +3,9 @@ version: "3.9"
 services:
   cloudproxy:
     restart: always
+    image: cloudproxy:latest
     build: 
       context: .
-      image: quinndt/cloudproxy
       # # If the example below is implemented this should work, although I havent tried the
       # # harvester myself and have no idea if "<domain>" is the right syntax, it shows in examples
       # args:

@@ -248,7 +248,7 @@ docker compose down
 # You may also build and run manually, however the configuration is
 # already set in the compose file, that way you dont have to remember it.
 docker build -t cloudproxy:latest .
-docker run --restart=always --name cloudproxy -p 8191:8191 -d
+docker run --restart=always --name cloudproxy -p 8191:8191 -d cloudproxy:latest
 ```
 
 ## TypeScript
