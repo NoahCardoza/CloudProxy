@@ -6,8 +6,7 @@ services:
     image: cloudproxy:latest
     build: 
       context: .
-      # # If the example below is implemented this should work, although I havent tried the
-      # # harvester myself and have no idea if "<domain>" is the right syntax, it shows in examples
+      # # If the example below is implemented this should work, although it remains untested
       # args:
       #   CAPTCHA_SOLVER: harvester
       #   HARVESTER_ENDPOINT: https://harvester:5000/<domain>/token
@@ -20,9 +19,9 @@ services:
 
   # # Example:
   # harvester:
+  #   # it is also possible to pull the image from docker hub
   #   image: username/image
   #   build:
   #     context: .
   #     # Assuming this exists & exposes port 5000 as the harvester
   #     dockerfile: harvester.Dockerfile
-  #     # it is also possible to pull the image from docker hub
