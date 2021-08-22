@@ -236,9 +236,17 @@ PR's are welcome for any and all captcha solving methods and services.
 
 ## Docker
 
-You can edit environment variables in `./Dockerfile` and build your own image.
+You may edit the `./Dockerfile` as well as `./docker-compose.yml` as you see fit.
 
 ```bash
+# To build the image & run it using `docker compose` (detched mode)
+docker compose up -d
+
+# To stop & remove containers:
+docker compose down
+
+# You may also build and run manually, however the configuration is
+# already set in the compose file, that way you dont have to remember it.
 docker build -t cloudproxy:latest .
 docker run --restart=always --name cloudproxy -p 8191:8191 -d cloudproxy:latest
 ```

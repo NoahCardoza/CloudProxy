@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  cloudproxy:
+    restart: always
+    image: cloudproxy:latest
+    build: 
+      context: .
+      # # If the example below is implemented this should work, although it remains untested
+      # args:
+      #   CAPTCHA_SOLVER: harvester
+      #   HARVESTER_ENDPOINT: https://harvester:5000/<domain>/token
+    ports:
+      # Map host (8191) to container (8191)
+      - 8191:8191
+
+  # This can be expanded upon to automatically start a captcha harvester and connect them on the same network
+  # However the harvester isnt dockerised yet.
+
+  # # Example:
+  # harvester:
+  #   # it is also possible to pull the image from docker hub
+  #   image: username/image
+  #   build:
+  #     context: .
+  #     # Assuming this exists & exposes port 5000 as the harvester
+  #     dockerfile: harvester.Dockerfile
