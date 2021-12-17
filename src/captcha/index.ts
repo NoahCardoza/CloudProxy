@@ -7,6 +7,9 @@ export interface SolverOptions {
   url: string
   sitekey: string
   type: CaptchaType
+  userAgent?: string
+  proxy?: string
+  apiKey?: string
 }
 
 export type Solver = (options: SolverOptions) => Promise<string>
