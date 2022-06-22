@@ -16,7 +16,7 @@
   "dependencies": {
     "@antiadmin/anticaptchaofficial": "^1.0.13",
     "console-log-level": "^1.4.1",
-    "got": "^11.5.1",
+    "got": "^11.8.5",
     "hcaptcha-solver": "^1.0.2",
     "puppeteer": "^3.3.0",
     "puppeteer-extra": "^3.1.15",
