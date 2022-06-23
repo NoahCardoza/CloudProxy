@@ -1,9 +1,9 @@
-FROM --platform=${TARGETPLATFORM:-linux/amd64} node:15.2.1-alpine3.11
+FROM node:15.2.1-alpine3.11
 
 # Print build information (ARGS are automatic, and target can be set)
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
-RUN printf "I am running on ${BUILDPLATFORM:-linux/amd64}, building for ${TARGETPLATFORM:-linux/amd64}\n$(uname -a)\n"
+RUN printf "I am running on ${BUILDPLATFORM}, building for ${TARGETPLATFORM}\n$(uname -a)\n"
 
 # Install Chromium and dumb-init and remove all locales but en-US
 RUN apk add --no-cache chromium dumb-init && \
