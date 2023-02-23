@@ -3,6 +3,7 @@ import sessions, { SessionsCacheItem } from './session'
 import { RequestContext } from './types'
 import log from './log'
 import { Browser, SetCookie, Request, Page, Headers, HttpMethod, Overrides, Cookie } from 'puppeteer'
+import { stringify } from 'querystring'
 import { TimeoutError } from 'puppeteer/Errors'
 import getCaptchaSolver, { CaptchaType } from './captcha'
 
@@ -25,7 +26,7 @@ interface SessionsCreateAPICall extends BaseSessionsAPICall {
 interface BaseRequestAPICall extends BaseAPICall {
   url: string
   method?: HttpMethod
-  postData?: string
+  postData?: object
   session?: string
   userAgent?: string
   maxTimeout?: number
@@ -58,7 +59,7 @@ interface ChallengeResolutionT {
 
 interface OverrideResolvers {
   method?: (request: Request) => HttpMethod,
-  postData?: (request: Request) => string,
+  postData?: (request: Request) => object,
   headers?: (request: Request) => Headers
 }
 
@@ -309,7 +310,6 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
 
 function mergeSessionWithParams({ defaults }: SessionsCacheItem, params: BaseRequestAPICall): BaseRequestAPICall {
   const copy = { ...defaults, ...params }
-
   // custom merging logic
   copy.headers = { ...defaults.headers || {}, ...params.headers || {} } || null
 
@@ -321,7 +321,6 @@ async function setupPage(ctx: RequestContext, params: BaseRequestAPICall, browse
 
   // merge session defaults with params
   const { method, postData, userAgent, headers, cookies, proxy } = params
-
   let overrideResolvers: OverrideResolvers = {}
 
   if (method !== 'GET') {
@@ -361,13 +360,18 @@ async function setupPage(ctx: RequestContext, params: BaseRequestAPICall, browse
       }
 
       callbackRunOnce = true
-      const overrides: Overrides = {}
-
+      var overrides: Overrides = {}
       Object.keys(overrideResolvers).forEach((key: OverridesProps) => {
         // @ts-ignore
         overrides[key] = overrideResolvers[key](request)
       });
-
+      if(overrides?.method === 'POST') {
+         if(typeof overrides?.postData === 'object'){
+          const postData = stringify(overrides?.postData)
+          overrides = { ...overrides, postData  }
+         }
+         overrides.headers = { ...overrides.headers, 'Content-Type': 'application/x-www-form-urlencoded'}
+      }
       log.debug(overrides)
 
       request.continue(overrides)
@@ -440,7 +444,6 @@ export const routes: Routes = {
   },
   'request.post': async (ctx, params: BaseRequestAPICall) => {
     params.method = 'POST'
-
     if (!params.postData) {
       return ctx.errorResponse('Must send param "postBody" when sending a POST request.')
     }
