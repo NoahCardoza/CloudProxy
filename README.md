@@ -165,9 +165,26 @@ Example response from running the `curl` above:
 
 This is the same as `request.get` but it takes one more param:
 
+Example request:
+
+```bash
+curl -L -X POST 'http://localhost:8191/v1' \
+-H 'Content-Type: application/json' \
+--data-raw '{
+  "cmd": "request.post",
+  "url":"http://www.google.com/",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.0 Safari/537.36",
+  "maxTimeout": 60000,
+  "postData": { "string": "string", "number": 10, "boolean": false },
+  "headers": {
+    "X-Test": "Testing 123..."
+  }
+}'
+```
 Parameter | Notes
 |--|--|
-postData | Must be a string. If you want to POST a form, don't forget to set the `Content-Type` header to `application/x-www-form-urlencoded` or the server might not understand your request.
+
+postData | Must be a object.
 
 ## Downloading Images and PDFs (small files)
 
