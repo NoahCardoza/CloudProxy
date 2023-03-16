@@ -438,14 +438,14 @@ export const routes: Routes = {
   'request.get': async (ctx, params: BaseRequestAPICall) => {
     params.method = 'GET'
     if (params.postData) {
-      return ctx.errorResponse('Cannot use "postBody" when sending a GET request.')
+      return ctx.errorResponse('Cannot use "postData" when sending a GET request.')
     }
     await browserRequest(ctx, params)
   },
   'request.post': async (ctx, params: BaseRequestAPICall) => {
     params.method = 'POST'
     if (!params.postData) {
-      return ctx.errorResponse('Must send param "postBody" when sending a POST request.')
+      return ctx.errorResponse('Must send param "postData" when sending a POST request.')
     }
 
     await browserRequest(ctx, params)
@@ -454,7 +454,7 @@ export const routes: Routes = {
     params.returnOnlyCookies = true
     params.method = 'GET'
     if (params.postData) {
-      return ctx.errorResponse('Cannot use "postBody" when sending a GET request.')
+      return ctx.errorResponse('Cannot use "postData" when sending a GET request.')
     }
     await browserRequest(ctx, params)
   },
