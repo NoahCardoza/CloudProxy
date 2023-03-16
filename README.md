@@ -100,7 +100,7 @@ session | Optional. Will send the request from and existing browser instance. If
 headers | Optional. To specify user headers.
 maxTimeout | Optional. Max timeout to solve the challenge
 cookies | Optional. Will be used by the headless browser. Follow [this](https://github.com/puppeteer/puppeteer/blob/v3.3.0/docs/api.md#pagesetcookiecookies) format
-
+encode | Optional. Add to header list `'Content-Type': 'application/x-www-form-urlencoded'` — can be useful if you need to send a JSON in `postData`.
 Example response from running the `curl` above:
 
 ```json
@@ -183,7 +183,6 @@ curl -L -X POST 'http://localhost:8191/v1' \
 ```
 Parameter | Notes
 |--|--|
-
 postData | Must be a object.
 
 ## Downloading Images and PDFs (small files)
