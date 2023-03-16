@@ -33,6 +33,7 @@ interface BaseRequestAPICall extends BaseAPICall {
   cookies?: SetCookie[],
   headers?: Headers
   proxy?: string,
+  encode?: boolean
   download?: boolean
   returnOnlyCookies?: boolean
 }
@@ -320,7 +321,7 @@ async function setupPage(ctx: RequestContext, params: BaseRequestAPICall, browse
   const page = await browser.newPage()
 
   // merge session defaults with params
-  const { method, postData, userAgent, headers, cookies, proxy } = params
+  const { method, postData, userAgent, headers, cookies, proxy, encode } = params
   let overrideResolvers: OverrideResolvers = {}
 
   if (method !== 'GET') {
@@ -370,7 +371,10 @@ async function setupPage(ctx: RequestContext, params: BaseRequestAPICall, browse
           const postData = stringify(overrides?.postData)
           overrides = { ...overrides, postData  }
          }
-         overrides.headers = { ...overrides.headers, 'Content-Type': 'application/x-www-form-urlencoded'}
+
+         if(encode) {
+          overrides.headers = { ...overrides.headers, 'Content-Type': 'application/x-www-form-urlencoded'}
+         }
       }
       log.debug(overrides)
 
