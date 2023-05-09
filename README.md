@@ -5,6 +5,18 @@ Proxy server to bypass Cloudflare protection
 :warning: This project is in beta state. Some things may not work and the API can change at any time.
 See the known issues section.
 
+# 2captcha Alternatives
+
+## [CapSolver.com](https://dashboard.capsolver.com/passport/register?inviteCode=45JrWKeetsQa)
+
+<p align="center">
+  <a href="https://dashboard.capsolver.com/passport/register?inviteCode=45JrWKeetsQa">
+    <img src="https://i.imgur.com/YaRmSt4.gif" alt="Capsolver's Banner" style="width: 100%;">
+  </a>
+</p>
+
+<a href="https://dashboard.capsolver.com/passport/register?inviteCode=45JrWKeetsQa">Capsolver</a> offers an affordable and quick automatic captcha solving solution with a success rate of 99.15% and the ability to solve a variety of captchas, including reCAPTCHA V2, hCaptcha, FunCaptcha, and more. Integration with various API clients is also supported, and a free trial balance is available with upgraded personal details.
+
 ## Discord
 
 If you need help feel free to swing by my [Discord](https://discord.gg/gTq2VmUMsE)!
