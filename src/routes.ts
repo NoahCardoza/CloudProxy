@@ -118,7 +118,14 @@ async function interceptResponse(page: Page, callback: (payload: ChallengeResolu
   });
 }
 
-async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, download, returnOnlyCookies }: BaseRequestAPICall, page: Page): Promise<ChallengeResolutionT | void> {
+async function resolveChallenge(ctx: RequestContext, {
+  url,
+  maxTimeout,
+  cookies,
+  proxy,
+  download,
+  returnOnlyCookies
+}: BaseRequestAPICall, page: Page): Promise<ChallengeResolutionT | void> {
   maxTimeout = maxTimeout || 60000
   let status = 'ok'
   let message = ''
@@ -129,6 +136,10 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
 
   log.debug(`Navigating to... ${url}`)
   let response = await page.goto(url, { waitUntil: 'domcontentloaded' })
+  if (cookies) {
+    log.debug(`Setting custom cookies: ${JSON.stringify(cookies, null, 2)}`,)
+    await page.setCookie(...cookies)
+  }
 
   // look for challenge
   if (response.headers().server.startsWith('cloudflare')) {
@@ -344,10 +355,10 @@ async function setupPage(ctx: RequestContext, params: BaseRequestAPICall, browse
     overrideResolvers.headers = request => Object.assign(request.headers(), headers)
   }
 
-  if (cookies) {
-    log.debug(`Setting custom cookies: ${JSON.stringify(cookies, null, 2)}`,)
-    await page.setCookie(...cookies)
-  }
+  // if (cookies) {
+  //   log.debug(`Setting custom cookies: ${JSON.stringify(cookies, null, 2)}`,)
+  //   await page.setCookie(...cookies)
+  // }
 
   // if any keys have been set on the object
   if (Object.keys(overrideResolvers).length > 0) {
