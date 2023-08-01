@@ -366,15 +366,21 @@ async function setupPage(ctx: RequestContext, params: BaseRequestAPICall, browse
         // @ts-ignore
         overrides[key] = overrideResolvers[key](request)
       });
-      if(overrides?.method === 'POST') {
-         if(typeof overrides?.postData === 'object'){
-          const postData = stringify(overrides?.postData)
-          overrides = { ...overrides, postData  }
-         }
+      if (overrides?.method === 'POST') {
+        if (typeof overrides?.postData === 'object') {
+          const application_json = JSON.stringify(overrides.headers).toLowerCase().includes('application/json')
+          log.debug('application_json', application_json)
+          let postData = stringify(overrides?.postData)
+          if (application_json)
+            postData = JSON.stringify(overrides?.postData)
+          log.debug('postData', postData)
+          overrides = {...overrides, postData}
+        }
 
-         if(encode) {
-          overrides.headers = { ...overrides.headers, 'Content-Type': 'application/x-www-form-urlencoded'}
-         }
+        if (encode) {
+          overrides.headers = {...overrides.headers, 'Content-Type': 'application/x-www-form-urlencoded'}
+        }
+        log.debug('overrides.headers', overrides.headers)
       }
       log.debug(overrides)
 
