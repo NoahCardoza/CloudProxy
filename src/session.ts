@@ -56,9 +56,13 @@ function prepareBrowserProfile(id: string): string {
 export default {
   create: async (id: string, { proxy, cookies, oneTimeSession, userAgent, headers, maxTimeout }: SessionCreateOptions): Promise<SessionsCacheItem> => {
     let args = ['--no-sandbox', '--disable-setuid-sandbox'];
+    let proxy_without_credentials;
     if (proxy) {
-      log.debug(proxy)
-      args.push(`--proxy-server=${proxy}`);
+      if (proxy.includes('@'))
+        proxy_without_credentials = proxy.split('@')[1]
+      else
+        proxy_without_credentials = proxy
+      args.push(`--proxy-server=${proxy_without_credentials}`);
     }
 
     const puppeteerOptions: LaunchOptions = {
@@ -104,7 +108,8 @@ export default {
       defaults: removeEmptyFields({
         userAgent,
         headers,
-        maxTimeout
+        maxTimeout,
+        proxy
       })
     }
 
