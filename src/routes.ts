@@ -124,7 +124,13 @@ async function resolveChallenge(ctx: RequestContext, { url, maxTimeout, proxy, d
   let message = ''
 
   if (proxy) {
-    log.debug("Apply proxy");
+    const proxy_credentials = proxy.split('@').length > 0 ? proxy.split('@')[0]: null
+    if (proxy_credentials && proxy_credentials.includes(':')) {
+      await page.authenticate({
+        username: proxy_credentials.split(':')[0],
+        password: proxy_credentials.split(':')[1]
+      })
+    }
   }
 
   log.debug(`Navigating to... ${url}`)
