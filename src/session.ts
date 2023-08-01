@@ -80,15 +80,17 @@ export default {
     let launchTries = 3
     let browser;
 
-    while (0 <= launchTries--) {
+    while (0 <= launchTries) {
       try {
         browser = await puppeteer.launch(puppeteerOptions)
         break
       } catch (e) {
-        if (e.message !== 'Failed to launch the browser process!')
-          throw e
+        log.error('puppeteer.launch error', e)
+        // if (e.message !== 'Failed to launch the browser process!')
+        //   throw e
         log.warn('Failed to open browser, trying again...')
       }
+      launchTries--
     }
 
     if (!browser) { throw Error(`Failed to lanch browser 3 times in a row.`) }
